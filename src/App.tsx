@@ -5,36 +5,54 @@ import { Scene3D } from './components/viewport-3d/Scene3D';
 import { TopBar } from './components/ui/TopBar';
 import { CatalogSidebar } from './components/ui/CatalogSidebar';
 import { PropertiesSidebar } from './components/ui/PropertiesSidebar';
+import { ProjectHub } from './components/ui/ProjectHub';
 import { useKeyboard } from './hooks/useKeyboard';
 import { cn } from './lib/utils';
 
 export default function App() {
-  const { viewMode, selection } = useStore();
+  const { viewMode, selection, workspaceMode, cameraPreset } = useStore();
   
   // Register keyboard shortcuts
   useKeyboard();
 
   return (
     <div className="fixed inset-0 w-full h-screen bg-slate-100 flex flex-col font-sans overflow-hidden select-none">
+      {workspaceMode === 'DASHBOARD' && <ProjectHub />}
       <TopBar />
 
       <main className="flex-1 flex overflow-hidden relative">
         <CatalogSidebar />
         
-        <div className="flex-1 relative bg-white overflow-hidden">
-          <div className={cn(
-            "absolute inset-0 transition-opacity duration-300",
-            viewMode === '2D' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-          )}>
-            <FloorPlan />
-          </div>
-          
-          <div className={cn(
-            "absolute inset-0 transition-opacity duration-300",
-            viewMode === '3D' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-          )}>
-            <Scene3D />
-          </div>
+        <div className={cn(
+          "flex-1 relative bg-white overflow-hidden",
+          viewMode === 'SPLIT' && "grid grid-cols-2 gap-px bg-slate-200"
+        )}>
+          {viewMode === 'SPLIT' ? (
+            <>
+              <div className="relative bg-white overflow-hidden">
+                <FloorPlan />
+              </div>
+              <div className="relative bg-white overflow-hidden">
+                <Scene3D cameraPreset={cameraPreset} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={cn(
+                "absolute inset-0 transition-opacity duration-300",
+                viewMode === '2D' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+              )}>
+                <FloorPlan />
+              </div>
+              
+              <div className={cn(
+                "absolute inset-0 transition-opacity duration-300",
+                viewMode === '3D' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+              )}>
+                <Scene3D cameraPreset={cameraPreset} />
+              </div>
+            </>
+          )}
 
           {/* Canvas Overlay Labels */}
           <div className="absolute top-4 left-4 z-20 pointer-events-none flex flex-col gap-1">
@@ -42,7 +60,7 @@ export default function App() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Viewport</span>
                 <span className="text-[10px] font-bold text-slate-800 uppercase">{viewMode} Mode</span>
              </div>
-             <div className="text-[9px] text-slate-400 font-medium px-2">Project Units: 1mm</div>
+             <div className="text-[9px] text-slate-400 font-medium px-2">Project Units: 1mm · Camera: {cameraPreset}</div>
           </div>
         </div>
 

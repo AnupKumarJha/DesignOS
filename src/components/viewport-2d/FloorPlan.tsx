@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Stage, Layer, Group, Line } from 'react-konva';
+import { Stage, Layer, Group, Line, Text, Circle } from 'react-konva';
 import { useStore, Wall, Point, Furniture } from '../../store/useStore';
 import { Grid } from './Grid';
 import { Wall2D } from './Wall2D';
@@ -7,6 +7,7 @@ import { Furniture2D } from './Furniture2D';
 import { Opening2D } from './Opening2D';
 import { snapToGrid, snapToAngle, findClosestPoint, getClosestPointOnSegment, getDistance } from '../../lib/math';
 import { DEFAULT_WALL_HEIGHT, DEFAULT_WALL_THICKNESS } from '../../lib/constants';
+import { getCatalogItem, getMaterial, getVariant } from '../../data/catalog';
 
 export const FloorPlan: React.FC = () => {
   const { 
@@ -36,14 +37,20 @@ export const FloorPlan: React.FC = () => {
   const [draftStart, setDraftStart] = useState<Point | null>(null);
   const [currentMousePos, setCurrentMousePos] = useState<Point | null>(null);
 
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<any>(null);
 
   useEffect(() => {
-    const handleResize = () => {
-      setDimensions({ width: window.innerWidth, height: window.innerHeight });
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const element = containerRef.current;
+    if (!element) return;
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      setDimensions({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height,
+      });
+    });
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
   }, []);
 
   useEffect(() => {
@@ -57,6 +64,55 @@ export const FloorPlan: React.FC = () => {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
+
+  const getFurnitureDraft = (position: Point): Furniture => {
+    const catalogItem = getCatalogItem(selectedCatalogItem) || getCatalogItem('cabinet_base')!;
+    const variant = getVariant(catalogItem.id, catalogItem.defaultVariantId)!;
+    let snappedPos = snapToGrid(position, 50);
+    let rotation = 0;
+    
+    let minSnapDist = 100;
+    for (const wall of walls) {
+      const { point } = getClosestPointOnSegment(position, wall.start, wall.end);
+      const dist = getDistance(position, point);
+      
+      if (dist < minSnapDist) {
+        minSnapDist = dist;
+        snappedPos = point;
+        rotation = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x) * (180 / Math.PI) + 90;
+      }
+    }
+
+    return {
+      id: crypto.randomUUID(),
+      type: catalogItem.type,
+      position: snappedPos,
+      rotation,
+      width: variant.width,
+      depth: variant.depth,
+      height: variant.height,
+      color: '#ffffff',
+      catalogItemId: catalogItem.id,
+      variantId: variant.id,
+      shutterCount: variant.shutterCount,
+      drawerCount: variant.drawerCount,
+      hasHandle: catalogItem.hasHandle,
+      skirtingHeight: catalogItem.skirtingHeight,
+    };
+  };
+
+  const roomPolygon = (() => {
+    if (walls.length < 3) return null;
+    const points = walls.map((wall) => wall.start);
+    const closes = getDistance(walls[0].start, walls[walls.length - 1].end) < 30;
+    if (!closes) return null;
+    const area = Math.abs(points.reduce((sum, point, index) => {
+      const next = points[(index + 1) % points.length];
+      return sum + point.x * next.y - next.x * point.y;
+    }, 0)) / 2;
+    const center = points.reduce((acc, point) => ({ x: acc.x + point.x / points.length, y: acc.y + point.y / points.length }), { x: 0, y: 0 });
+    return { center, areaSqM: area / 1_000_000 };
+  })();
 
   const getRelativePointerPosition = (stage: any) => {
     const pointer = stage.getPointerPosition();
@@ -100,51 +156,12 @@ export const FloorPlan: React.FC = () => {
           height: DEFAULT_WALL_HEIGHT,
         };
         addWall(newWall);
-        setDraftStart(null);
-        setActiveTool('SELECT');
+        setDraftStart(wallEnd);
       }
     } else if (activeTool === 'FURNITURE') {
       const stage = e.target.getStage();
       const pos = getRelativePointerPosition(stage);
-      
-      const furnitureConfig: Record<string, Partial<Furniture>> = {
-        'cabinet_base': { type: 'CABINET_BASE', width: 600, depth: 560, height: 720, shutterCount: 1, hasHandle: true, skirtingHeight: 100 },
-        'cabinet_wall': { type: 'CABINET_WALL', width: 600, depth: 320, height: 720, shutterCount: 1, hasHandle: true },
-        'cabinet_tall': { type: 'CABINET_TALL', width: 600, depth: 560, height: 2040, shutterCount: 1, hasHandle: true, skirtingHeight: 100 },
-        'sink_unit': { type: 'SINK_UNIT', width: 800, depth: 560, height: 720, shutterCount: 2, hasHandle: true, skirtingHeight: 100 },
-        'wardrobe': { type: 'WARDROBE', width: 1000, depth: 600, height: 2100, shutterCount: 2, hasHandle: true, skirtingHeight: 100 },
-      };
-
-      const config = (selectedCatalogItem && furnitureConfig[selectedCatalogItem]) || furnitureConfig['cabinet_base'];
-      
-      // Basic wall snapping for cabinets
-      let snappedPos = snapToGrid(pos, 50);
-      let rotation = 0;
-      
-      let minSnapDist = 100;
-      for (const wall of walls) {
-        const { point } = getClosestPointOnSegment(pos, wall.start, wall.end);
-        const dist = getDistance(pos, point);
-        
-        if (dist < minSnapDist) {
-          minSnapDist = dist;
-          snappedPos = point;
-          // Calculate rotation to face away from wall
-          rotation = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x) * (180 / Math.PI) + 90;
-        }
-      }
-
-      const newFurniture: Furniture = {
-        id: crypto.randomUUID(),
-        type: config.type as any,
-        position: snappedPos,
-        rotation,
-        width: config.width || 600,
-        depth: config.depth || 600,
-        height: config.height || 900,
-        color: '#ffffff',
-        ...config
-      };
+      const newFurniture = getFurnitureDraft(pos);
       addFurniture(newFurniture);
       setSelection({ id: newFurniture.id, type: 'furniture' });
       setActiveTool('SELECT');
@@ -204,12 +221,8 @@ export const FloorPlan: React.FC = () => {
 
   const handleWallClick = (wall: Wall) => {
     if (activeTool === 'APPLY_FINISH' && activeFinish) {
-      const finishMap: Record<string, string> = {
-        'finish_white': '#ffffff',
-        'finish_wood': '#d4a373',
-        'finish_marble': '#e5e7eb',
-      };
-      updateWall(wall.id, { color: finishMap[activeFinish] });
+      const material = getMaterial(activeFinish);
+      updateWall(wall.id, { color: material?.color, materialId: material?.id });
     } else {
       setSelection({ id: wall.id, type: 'wall' });
     }
@@ -217,12 +230,8 @@ export const FloorPlan: React.FC = () => {
 
   const handleFurnitureClick = (item: Furniture) => {
     if (activeTool === 'APPLY_FINISH' && activeFinish) {
-      const finishMap: Record<string, string> = {
-        'finish_white': '#ffffff',
-        'finish_wood': '#d4a373',
-        'finish_marble': '#e5e7eb',
-      };
-      updateFurniture(item.id, { color: finishMap[activeFinish] });
+      const material = getMaterial(activeFinish);
+      updateFurniture(item.id, { color: material?.color, materialId: material?.id });
     } else {
       setSelection({ id: item.id, type: 'furniture' });
     }
@@ -251,7 +260,7 @@ export const FloorPlan: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full bg-white overflow-hidden">
+    <div ref={containerRef} className="w-full h-full bg-white overflow-hidden">
       <Stage
         width={dimensions.width}
         height={dimensions.height}
@@ -277,9 +286,26 @@ export const FloorPlan: React.FC = () => {
                 wall={wall}
                 isSelected={selection?.id === wall.id}
                 onClick={() => handleWallClick(wall)}
+                onEndpointDrag={(endpoint, point) => updateWall(wall.id, { [endpoint]: snapToGrid(point, 50) })}
               />
             ))}
           </Group>
+
+          {roomPolygon && (
+            <Group x={roomPolygon.center.x} y={roomPolygon.center.y}>
+              <Circle radius={42} fill="white" opacity={0.85} stroke="#cbd5e1" />
+              <Text
+                text={`${roomPolygon.areaSqM.toFixed(2)} sqm`}
+                fontSize={12}
+                fontStyle="bold"
+                fill="#334155"
+                width={84}
+                align="center"
+                offsetX={42}
+                offsetY={7}
+              />
+            </Group>
+          )}
 
           <Group>
             {furniture.map((item) => (
@@ -304,6 +330,8 @@ export const FloorPlan: React.FC = () => {
                   opening={opening}
                   isSelected={selection?.id === opening.id}
                   onClick={() => setSelection({ id: opening.id, type: 'opening' })}
+                  draggable={selection?.id === opening.id}
+                  onDragOffset={(offset) => updateOpening(opening.id, { offset })}
                 />
               );
             })}
@@ -312,43 +340,14 @@ export const FloorPlan: React.FC = () => {
           {/* Placement Previews */}
           {activeTool === 'FURNITURE' && currentMousePos && (
              (() => {
-               const furnitureConfig: Record<string, Partial<Furniture>> = {
-                 'cabinet_base': { type: 'CABINET_BASE', width: 600, depth: 560, height: 720 },
-                 'cabinet_wall': { type: 'CABINET_WALL', width: 600, depth: 320, height: 720 },
-                 'cabinet_tall': { type: 'CABINET_TALL', width: 600, depth: 560, height: 2040 },
-                 'sink_unit': { type: 'SINK_UNIT', width: 800, depth: 560, height: 720 },
-                 'wardrobe': { type: 'WARDROBE', width: 1000, depth: 600, height: 2100 },
-               };
-               const config = (selectedCatalogItem && furnitureConfig[selectedCatalogItem]) || furnitureConfig['cabinet_base'];
-               
-               let snappedPos = snapToGrid(currentMousePos, 50);
-               let rotation = 0;
-               let minSnapDist = 100;
-               for (const wall of walls) {
-                 const { point } = getClosestPointOnSegment(currentMousePos, wall.start, wall.end);
-                 const dist = getDistance(currentMousePos, point);
-                 if (dist < minSnapDist) {
-                   minSnapDist = dist;
-                   snappedPos = point;
-                   rotation = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x) * (180 / Math.PI) + 90;
-                 }
-               }
+               const preview = getFurnitureDraft(currentMousePos);
 
                return (
                 <Furniture2D
                   isSelected={false}
                   onClick={() => {}}
                   draggable={false}
-                  item={{
-                    id: 'preview',
-                    type: config.type as any,
-                    position: snappedPos,
-                    rotation: rotation,
-                    width: config.width || 600,
-                    depth: config.depth || 600,
-                    height: config.height || 900,
-                    color: '#ffffff'
-                  }}
+                  item={{ ...preview, id: 'preview' }}
                 />
                );
              })()
@@ -402,7 +401,7 @@ export const FloorPlan: React.FC = () => {
       </Stage>
       
       <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur px-3 py-2 rounded-md text-xs text-slate-500 border border-slate-200">
-        ESC to cancel • Scroll to zoom • Drag to pan (Select) • Space to rotate furniture (TBD)
+        ESC to cancel • Right click to finish wall chain • Scroll to zoom • Drag to pan • Drag selected wall endpoints/openings
       </div>
     </div>
   );

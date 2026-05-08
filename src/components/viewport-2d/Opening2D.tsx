@@ -1,6 +1,6 @@
 import React from 'react';
 import { Group, Rect, Line } from 'react-konva';
-import { Wall, WallOpening, Point } from '../../store/useStore';
+import { Wall, WallOpening } from '../../store/useStore';
 import { getDistance } from '../../lib/math';
 
 interface Opening2DProps {
@@ -8,9 +8,11 @@ interface Opening2DProps {
   opening: WallOpening;
   isSelected?: boolean;
   onClick?: () => void;
+  onDragOffset?: (offset: number) => void;
+  draggable?: boolean;
 }
 
-export const Opening2D: React.FC<Opening2DProps> = ({ wall, opening, isSelected, onClick }) => {
+export const Opening2D: React.FC<Opening2DProps> = ({ wall, opening, isSelected, onClick, onDragOffset, draggable = false }) => {
   const dx = wall.end.x - wall.start.x;
   const dy = wall.end.y - wall.start.y;
   const angle = Math.atan2(dy, dx) * (180 / Math.PI);
@@ -28,6 +30,24 @@ export const Opening2D: React.FC<Opening2DProps> = ({ wall, opening, isSelected,
       rotation={angle} 
       onClick={onClick}
       onTap={onClick}
+      draggable={draggable}
+      dragBoundFunc={(nextPos) => {
+        const wallAngle = Math.atan2(dy, dx);
+        const vx = nextPos.x - wall.start.x;
+        const vy = nextPos.y - wall.start.y;
+        const projected = Math.max(0, Math.min(length, vx * Math.cos(wallAngle) + vy * Math.sin(wallAngle)));
+        return {
+          x: wall.start.x + Math.cos(wallAngle) * projected,
+          y: wall.start.y + Math.sin(wallAngle) * projected,
+        };
+      }}
+      onDragEnd={(event) => {
+        const wallAngle = Math.atan2(dy, dx);
+        const vx = event.target.x() - wall.start.x;
+        const vy = event.target.y() - wall.start.y;
+        const projected = Math.max(0, Math.min(length, vx * Math.cos(wallAngle) + vy * Math.sin(wallAngle)));
+        onDragOffset?.(projected / length);
+      }}
     >
       {/* Background to mask wall */}
       <Rect
@@ -42,7 +62,7 @@ export const Opening2D: React.FC<Opening2DProps> = ({ wall, opening, isSelected,
       
       {/* Visual indicator for Door */}
       {opening.type === 'DOOR' && (
-        <Group>
+        <Group scaleY={opening.flip ? -1 : 1}>
            <Line
             points={[opening.width / 2, -wall.thickness / 2, opening.width / 2, -opening.width]}
             stroke="#94a3b8"

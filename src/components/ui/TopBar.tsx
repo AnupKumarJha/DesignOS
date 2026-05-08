@@ -6,24 +6,45 @@ import {
   ChevronRight, 
   Share2, 
   Maximize2, 
-  HelpCircle, 
   Settings,
-  Grid3X3,
   Box,
   Layout,
+  Columns2,
   Undo2,
   Redo2,
   FileText,
   X,
-  Download
+  Download,
+  Save,
+  Upload,
+  FolderOpen,
+  Trash2
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { generateBOQ, BOQItem } from '../../lib/pricing';
+import { generateBOQ } from '../../lib/pricing';
+import { downloadJson, readJsonFile, upsertProject } from '../../lib/persistence';
 
 export const TopBar: React.FC = () => {
-  const { viewMode, setViewMode, walls, furniture, openings } = useStore();
+  const {
+    viewMode,
+    setViewMode,
+    cameraPreset,
+    setCameraPreset,
+    workspaceMode,
+    setWorkspaceMode,
+    project,
+    updateProject,
+    setSavedProjects,
+    getSnapshot,
+    loadSnapshot,
+    clearAll,
+    walls,
+    furniture,
+    openings
+  } = useStore();
   const { undo, redo, pastStates, futureStates } = useZustandStore(useStore.temporal, (state: any) => state);
   const [showQuotation, setShowQuotation] = useState(false);
+  const [showProjectEditor, setShowProjectEditor] = useState(false);
 
   const menuItems = [
     'Home', 'View', 'Insert', 'Draw', 'Architecture', 'Annotate', 'Render', 'Outputs'
@@ -31,6 +52,42 @@ export const TopBar: React.FC = () => {
 
   const boq = generateBOQ(walls, furniture, openings);
   const total = boq.reduce((acc, item) => acc + item.total, 0);
+  const gst = Math.round(total * 0.18);
+
+  const saveCurrentProject = () => {
+    const next = upsertProject(getSnapshot());
+    setSavedProjects(next);
+  };
+
+  const importProject = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const snapshot = await readJsonFile(file);
+    loadSnapshot(snapshot);
+    event.target.value = '';
+  };
+
+  const exportQuote = () => {
+    const rows = boq.map((item) => (
+      `<tr><td>${item.name}</td><td>${item.quantity}</td><td>${item.unit}</td><td>Rs. ${item.rate.toLocaleString()}</td><td>Rs. ${item.total.toLocaleString()}</td></tr>`
+    )).join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${project.projectName} Quote</title><style>
+      body{font-family:Arial,sans-serif;padding:32px;color:#172033} h1{font-size:24px;margin:0 0 4px} .muted{color:#64748b;font-size:12px} table{width:100%;border-collapse:collapse;margin-top:28px} th,td{border-bottom:1px solid #e2e8f0;padding:10px;text-align:left;font-size:12px} th{text-transform:uppercase;color:#64748b;font-size:10px}.totals{margin-left:auto;margin-top:24px;width:280px}.totals div{display:flex;justify-content:space-between;padding:7px 0}.grand{font-weight:800;font-size:18px;border-top:1px solid #cbd5e1}.footer{margin-top:50px;text-align:center;color:#64748b;font-size:11px}
+    </style></head><body>
+      <h1>Quotation for ${project.projectName}</h1>
+      <div class="muted">Client: ${project.clientName || '-'} · Project ID: ${project.projectId} · Room: ${project.room}</div>
+      <table><thead><tr><th>Item Description</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="totals"><div><span>Subtotal</span><strong>Rs. ${total.toLocaleString()}</strong></div><div><span>GST 18%</span><strong>Rs. ${gst.toLocaleString()}</strong></div><div class="grand"><span>Grand Total</span><span>Rs. ${(total + gst).toLocaleString()}</span></div></div>
+      <div class="footer">Issued by Namaste Design · GSTIN: 27IEAPK2697H1Z4 · Registered Address: Plot 60, Office 301, Shiva Prakash, Goregaon East, Mumbai 400063</div>
+    </body></html>`;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    }
+  };
 
   return (
     <div className="h-12 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-[100] select-none">
@@ -49,9 +106,12 @@ export const TopBar: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all">
+                <button
+                  onClick={exportQuote}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                >
                   <Download size={14} />
-                  <span>Download PDF</span>
+                  <span>Print / Save PDF</span>
                 </button>
                 <button 
                   onClick={() => setShowQuotation(false)}
@@ -113,6 +173,43 @@ export const TopBar: React.FC = () => {
         </div>
       )}
 
+      {showProjectEditor && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-8">
+          <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Project Details</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Workspace metadata</p>
+              </div>
+              <button onClick={() => setShowProjectEditor(false)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 grid grid-cols-2 gap-4">
+              {[
+                ['projectName', 'Project Name'],
+                ['clientName', 'Client Name'],
+                ['projectId', 'Project ID'],
+                ['building', 'Building'],
+                ['floor', 'Floor'],
+                ['room', 'Room'],
+                ['status', 'Status'],
+                ['clientDetails', 'Client Details'],
+              ].map(([key, label]) => (
+                <label key={key} className={cn('space-y-1.5', key === 'clientDetails' && 'col-span-2')}>
+                  <span className="text-[10px] uppercase tracking-widest text-slate-400 font-black">{label}</span>
+                  <input
+                    value={(project as any)[key] || ''}
+                    onChange={(event) => updateProject({ [key]: event.target.value } as any)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold outline-none focus:border-blue-400 focus:bg-white"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Left: Brand & Breadcrumbs */}
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.reload()}>
@@ -148,12 +245,21 @@ export const TopBar: React.FC = () => {
         <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
           <Home size={14} />
           <ChevronRight size={12} className="text-slate-300" />
-          <span className="hover:text-blue-600 cursor-pointer transition-colors px-1">Design1</span>
+          <button onClick={() => setWorkspaceMode('DASHBOARD')} className="hover:text-blue-600 cursor-pointer transition-colors px-1">
+            {workspaceMode === 'DASHBOARD' ? 'Project Hub' : project.projectName}
+          </button>
           <ChevronRight size={12} className="text-slate-300" />
-          <div className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded cursor-pointer flex items-center gap-1 group">
-            <span>Kitchen</span>
+          <button
+            onClick={() => setShowProjectEditor(true)}
+            className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded cursor-pointer flex items-center gap-1 group"
+          >
+            <span>{project.building}</span>
             <ChevronRight size={10} className="rotate-90 text-slate-400" />
-          </div>
+          </button>
+          <ChevronRight size={12} className="text-slate-300" />
+          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">{project.floor}</span>
+          <ChevronRight size={12} className="text-slate-300" />
+          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">{project.room}</span>
         </div>
       </div>
 
@@ -202,11 +308,59 @@ export const TopBar: React.FC = () => {
             <Box size={12} />
             <span>3D</span>
           </button>
+          <button
+            onClick={() => setViewMode('SPLIT')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold transition-all",
+              viewMode === 'SPLIT' 
+                ? "bg-blue-600 text-white shadow-md shadow-blue-200" 
+                : "text-slate-500 hover:bg-white"
+            )}
+          >
+            <Columns2 size={12} />
+            <span>Split</span>
+          </button>
+        </div>
+
+        <div className="hidden xl:flex items-center p-0.5 bg-slate-100/80 rounded-lg border border-slate-200 shadow-sm">
+          {[
+            ['FREE', 'Free'],
+            ['TOP', 'Top'],
+            ['FRONT', 'Front'],
+            ['SIDE', 'Side'],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setCameraPreset(id as any)}
+              className={cn(
+                "px-2.5 py-1 rounded-md text-[10px] font-black transition-all",
+                cameraPreset === id ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:bg-white"
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         <div className="h-4 w-[1px] bg-slate-200" />
 
         <div className="flex items-center gap-2">
+          <button onClick={saveCurrentProject} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Save">
+            <Save size={16} />
+          </button>
+          <button onClick={() => downloadJson(getSnapshot())} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Export JSON">
+            <Download size={16} />
+          </button>
+          <label className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all cursor-pointer" title="Import JSON">
+            <Upload size={16} />
+            <input type="file" accept="application/json" className="hidden" onChange={importProject} />
+          </label>
+          <button onClick={() => setWorkspaceMode('DASHBOARD')} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Open Project Hub">
+            <FolderOpen size={16} />
+          </button>
+          <button onClick={clearAll} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all" title="Clear Project">
+            <Trash2 size={16} />
+          </button>
           <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Share">
             <Share2 size={16} />
           </button>

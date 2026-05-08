@@ -1,8 +1,6 @@
 import React from 'react';
 import { useStore, CatalogCategory, Tool } from '../../store/useStore';
 import { 
-  Pencil, 
-  Layers, 
   DoorOpen, 
   Square, 
   Grid2X2, 
@@ -13,6 +11,7 @@ import {
   Filter
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { furnitureCatalog, materialCatalog } from '../../data/catalog';
 
 interface CatalogItem {
   id: string;
@@ -39,19 +38,29 @@ export const CatalogSidebar: React.FC = () => {
     { id: 'FINISHES', icon: Palette, label: 'Fin' },
   ];
 
-  const items: CatalogItem[] = [
+  const architectureItems: CatalogItem[] = [
     { id: 'wall', name: 'Wall', icon: Square, tool: 'WALL', category: 'ARCHITECTURE' },
     { id: 'door', name: 'Door', icon: DoorOpen, tool: 'DOOR', category: 'ARCHITECTURE' },
     { id: 'window', name: 'Window', icon: Grid2X2, tool: 'WINDOW', category: 'ARCHITECTURE' },
-    { id: 'cabinet_base', name: 'Base Cabinet', icon: Box, tool: 'FURNITURE', category: 'FURNITURE' },
-    { id: 'cabinet_wall', name: 'Wall Cabinet', icon: Box, tool: 'FURNITURE', category: 'FURNITURE' },
-    { id: 'cabinet_tall', name: 'Tall Cabinet', icon: Box, tool: 'FURNITURE', category: 'FURNITURE' },
-    { id: 'sink_unit', name: 'Sink Unit', icon: Box, tool: 'FURNITURE', category: 'FURNITURE' },
-    { id: 'wardrobe', name: 'Wardrobe', icon: Box, tool: 'FURNITURE', category: 'FURNITURE' },
-    { id: 'finish_white', name: 'White Paint', icon: Palette, tool: 'APPLY_FINISH', category: 'FINISHES' },
-    { id: 'finish_wood', name: 'Oak Wood', icon: Palette, tool: 'APPLY_FINISH', category: 'FINISHES' },
-    { id: 'finish_marble', name: 'Marble', icon: Palette, tool: 'APPLY_FINISH', category: 'FINISHES' },
   ];
+
+  const items: CatalogItem[] = [
+    ...architectureItems,
+    ...furnitureCatalog.map((item) => ({ id: item.id, name: item.name, icon: Box, tool: 'FURNITURE' as Tool, category: 'FURNITURE' as CatalogCategory })),
+    ...materialCatalog.map((item) => ({ id: item.id, name: item.name, icon: Palette, tool: 'APPLY_FINISH' as Tool, category: 'FINISHES' as CatalogCategory })),
+  ];
+
+  const groupedItems = items
+    .filter((item) => item.category === activeCategory)
+    .reduce<Record<string, CatalogItem[]>>((groups, item) => {
+      const group = activeCategory === 'FURNITURE'
+        ? furnitureCatalog.find((catalogItem) => catalogItem.id === item.id)?.group || 'Furniture'
+        : activeCategory === 'FINISHES'
+          ? materialCatalog.find((material) => material.id === item.id)?.group || 'Finishes'
+          : 'Architecture';
+      groups[group] = [...(groups[group] || []), item];
+      return groups;
+    }, {});
 
   if (!catalogOpen) return null;
 
@@ -96,10 +105,12 @@ export const CatalogSidebar: React.FC = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          {items
-            .filter(i => i.category === activeCategory)
-            .map((item) => (
+        <div className="space-y-4">
+          {Object.entries(groupedItems).map(([group, groupItems]) => (
+            <div key={group}>
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">{group}</h3>
+              <div className="grid grid-cols-2 gap-3">
+              {groupItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => {
@@ -119,7 +130,10 @@ export const CatalogSidebar: React.FC = () => {
                 </div>
                 <span className="text-[11px] font-medium text-slate-700">{item.name}</span>
               </button>
-            ))}
+              ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

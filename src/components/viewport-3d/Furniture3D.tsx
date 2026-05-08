@@ -17,7 +17,7 @@ export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, onCl
   const yPos = yBase + (item.height / 2) + (item.skirtingHeight || 0);
 
   const shutters = [];
-  if (item.shutterCount && item.shutterCount > 0) {
+  if (item.shutterCount && item.shutterCount > 0 && !item.drawerCount) {
     const gap = 2;
     const sWidth = (item.width - (item.shutterCount - 1) * gap) / item.shutterCount;
     for (let i = 0; i < item.shutterCount; i++) {
@@ -71,6 +71,38 @@ export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, onCl
           )}
         </group>
       ))}
+
+      {/* Drawer fronts */}
+      {item.drawerCount && item.drawerCount > 0 && Array.from({ length: item.drawerCount }).map((_, idx) => {
+        const drawerHeight = (item.height - 8) / item.drawerCount;
+        return (
+          <group key={`drawer-${idx}`} position={[0, item.height / 2 - drawerHeight / 2 - idx * drawerHeight, item.depth / 2 + 2]}>
+            <mesh>
+              <boxGeometry args={[item.width - 4, drawerHeight - 4, 18]} />
+              <meshStandardMaterial color={item.color || '#f1f5f9'} roughness={0.45} />
+            </mesh>
+            {item.hasHandle && (
+              <mesh position={[0, 0, 10]}>
+                <boxGeometry args={[180, 10, 10]} />
+                <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
+
+      {item.shutterCount === 0 && (
+        <>
+          <mesh position={[0, item.height * 0.15, item.depth / 2 + 2]}>
+            <boxGeometry args={[item.width - 8, 12, 18]} />
+            <meshStandardMaterial color="#94a3b8" />
+          </mesh>
+          <mesh position={[0, -item.height * 0.15, item.depth / 2 + 2]}>
+            <boxGeometry args={[item.width - 8, 12, 18]} />
+            <meshStandardMaterial color="#94a3b8" />
+          </mesh>
+        </>
+      )}
 
       {isSelected && (
         <mesh>

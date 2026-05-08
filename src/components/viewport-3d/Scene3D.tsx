@@ -1,18 +1,37 @@
 import React from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
-import { useStore } from '../../store/useStore';
+import { OrbitControls, PerspectiveCamera, OrthographicCamera, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
+import { CameraPreset, useStore } from '../../store/useStore';
 import { Wall3D } from './Wall3D';
 import { Furniture3D } from './Furniture3D';
+import { cn } from '../../lib/utils';
+import { getMaterial } from '../../data/catalog';
 
-export const Scene3D: React.FC = () => {
-  const { walls, furniture, openings, selection, setSelection, activeTool, activeFinish, updateWall, updateFurniture } = useStore();
+interface Scene3DProps {
+  cameraPreset?: CameraPreset;
+}
+
+const cameraConfig: Record<CameraPreset, { position: [number, number, number]; orthographic: boolean; label: string }> = {
+  FREE: { position: [5000, 5000, 5000], orthographic: false, label: 'Free View' },
+  TOP: { position: [0, 12000, 1], orthographic: true, label: 'Top / Floorplan' },
+  FRONT: { position: [0, 2500, 12000], orthographic: true, label: 'Front Elevation' },
+  SIDE: { position: [12000, 2500, 0], orthographic: true, label: 'Side Elevation' },
+  ISLAND_FRONT: { position: [3500, 2300, 9000], orthographic: false, label: 'Island Front Render' },
+};
+
+export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
+  const { walls, furniture, openings, selection, setSelection, activeTool, activeFinish, updateWall, updateFurniture, setCameraPreset } = useStore();
+  const config = cameraConfig[cameraPreset];
 
   return (
-    <div className="w-full h-full bg-slate-50">
+    <div className="w-full h-full bg-slate-50 relative">
       <Canvas shadows>
-        <PerspectiveCamera makeDefault position={[5000, 5000, 5000]} far={100000} />
-        <OrbitControls makeDefault minDistance={1000} maxDistance={50000} />
+        {config.orthographic ? (
+          <OrthographicCamera key={cameraPreset} makeDefault position={config.position} zoom={0.08} near={1} far={100000} />
+        ) : (
+          <PerspectiveCamera key={cameraPreset} makeDefault position={config.position} far={100000} />
+        )}
+        <OrbitControls makeDefault minDistance={1000} maxDistance={50000} enableRotate={cameraPreset !== 'TOP'} />
         
         {/* Lighting */}
         <ambientLight intensity={0.6} />
@@ -53,13 +72,8 @@ export const Scene3D: React.FC = () => {
               isSelected={selection?.id === wall.id}
               onClick={() => {
                 if (activeTool === 'APPLY_FINISH' && activeFinish) {
-                  // Map finish ID to color/texture
-                  const finishMap: Record<string, string> = {
-                    'finish_white': '#ffffff',
-                    'finish_wood': '#d4a373',
-                    'finish_marble': '#e5e7eb',
-                  };
-                  updateWall(wall.id, { color: finishMap[activeFinish] });
+                  const material = getMaterial(activeFinish);
+                  updateWall(wall.id, { color: material?.color, materialId: material?.id });
                 } else {
                   setSelection({ id: wall.id, type: 'wall' });
                 }
@@ -77,12 +91,8 @@ export const Scene3D: React.FC = () => {
               isSelected={selection?.id === item.id}
               onClick={() => {
                 if (activeTool === 'APPLY_FINISH' && activeFinish) {
-                  const finishMap: Record<string, string> = {
-                    'finish_white': '#ffffff',
-                    'finish_wood': '#d4a373',
-                    'finish_marble': '#e5e7eb',
-                  };
-                  updateFurniture(item.id, { color: finishMap[activeFinish] });
+                  const material = getMaterial(activeFinish);
+                  updateFurniture(item.id, { color: material?.color, materialId: material?.id });
                 } else {
                   setSelection({ id: item.id, type: 'furniture' });
                 }
@@ -96,6 +106,23 @@ export const Scene3D: React.FC = () => {
           <GizmoViewport axisColors={['#f87171', '#4ade80', '#60a5fa']} labelColor="black" />
         </GizmoHelper>
       </Canvas>
+
+      <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center gap-1 px-3 py-2 bg-white/80 backdrop-blur border-t border-slate-200">
+        {Object.entries(cameraConfig).map(([id, item]) => (
+          <button
+            key={id}
+            onClick={() => setCameraPreset(id as CameraPreset)}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-[10px] font-black transition-all border",
+              cameraPreset === id
+                ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                : "bg-white border-slate-200 text-slate-500 hover:text-blue-600"
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };

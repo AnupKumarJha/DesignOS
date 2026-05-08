@@ -77,6 +77,34 @@ export const Wall3D: React.FC<Wall3DProps> = ({ wall, openings, isSelected, onCl
           <meshStandardMaterial color="#cbd5e1" />
         </mesh>
       )}
+
+      {openings.map((opening) => {
+        const x = length * opening.offset;
+        const y = opening.bottomHeight + opening.height / 2;
+        const frameColor = opening.type === 'WINDOW' ? '#475569' : '#7c4a2d';
+        return (
+          <group key={opening.id} position={[x, y, wall.thickness + 4]}>
+            <mesh position={[0, opening.height / 2, 0]}>
+              <boxGeometry args={[opening.width + 80, 45, 35]} />
+              <meshStandardMaterial color={frameColor} />
+            </mesh>
+            <mesh position={[-opening.width / 2, 0, 0]}>
+              <boxGeometry args={[45, opening.height, 35]} />
+              <meshStandardMaterial color={frameColor} />
+            </mesh>
+            <mesh position={[opening.width / 2, 0, 0]}>
+              <boxGeometry args={[45, opening.height, 35]} />
+              <meshStandardMaterial color={frameColor} />
+            </mesh>
+            {opening.type === 'WINDOW' && (
+              <mesh>
+                <boxGeometry args={[opening.width, 30, 28]} />
+                <meshStandardMaterial color="#94a3b8" />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
     </group>
   );
 };

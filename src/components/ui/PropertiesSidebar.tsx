@@ -2,6 +2,8 @@ import React from 'react';
 import { useStore, Wall, Furniture } from '../../store/useStore';
 import { X, Settings2, Trash2, ChevronDown, Search, Filter, Layers, Ruler, Palette } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { furnitureCatalog, getCatalogItem, materialCatalog } from '../../data/catalog';
+import { getDistance } from '../../lib/math';
 
 export const PropertiesSidebar: React.FC = () => {
   const { selection, walls, furniture, openings, updateWall, updateFurniture, updateOpening, removeWall, removeFurniture, removeOpening, setSelection } = useStore();
@@ -20,17 +22,8 @@ export const PropertiesSidebar: React.FC = () => {
 
   if (!item) return null;
 
-  const materialCategories = ['Solid Paints', 'Texture Paint', 'Wallpaper', 'Glass'];
-  const colors = [
-    { name: 'Opal Green', value: '#134e4a' },
-    { name: 'Orange Brown', value: '#9a3412' },
-    { name: 'Silk Grey', value: '#cbd5e1' },
-    { name: 'Matte Black', value: '#1e293b' },
-    { name: 'Slate Blue', value: '#475569' },
-    { name: 'Cloud White', value: '#f8fafc' },
-    { name: 'Brick Red', value: '#7f1d1d' },
-    { name: 'Forest Green', value: '#064e3b' },
-  ];
+  const materialCategories = Array.from(new Set(materialCatalog.map((material) => material.group)));
+  const wallLength = isWall ? getDistance((item as Wall).start, (item as Wall).end) : 0;
 
   return (
     <div className="w-[320px] h-full bg-white border-l border-slate-200 flex flex-col z-40 transition-all shadow-2xl overflow-hidden">
@@ -63,6 +56,25 @@ export const PropertiesSidebar: React.FC = () => {
         
         {/* Accordion: Dimensions */}
         <Section title="Dimensions & Construction" icon={Ruler}>
+          {isWall && (
+            <div className="space-y-1.5 mb-4">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Length (mm)</label>
+              <Input
+                type="number"
+                value={Math.round(wallLength)}
+                onChange={(v) => {
+                  const wall = item as Wall;
+                  const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
+                  updateWall(wall.id, {
+                    end: {
+                      x: wall.start.x + Math.cos(angle) * v,
+                      y: wall.start.y + Math.sin(angle) * v,
+                    }
+                  });
+                }}
+              />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Height (mm)</label>
@@ -93,6 +105,7 @@ export const PropertiesSidebar: React.FC = () => {
           </div>
           
           {isFurniture && (
+            <>
              <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Depth (mm)</label>
@@ -111,6 +124,58 @@ export const PropertiesSidebar: React.FC = () => {
                   />
                 </div>
              </div>
+             {(item as Furniture).catalogItemId && (
+              <div className="space-y-1.5 mt-4">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Catalog Variant</label>
+                <select
+                  value={(item as Furniture).variantId || ''}
+                  onChange={(event) => {
+                    const catalogItem = getCatalogItem((item as Furniture).catalogItemId);
+                    const variant = catalogItem?.variants.find((option) => option.id === event.target.value);
+                    if (variant) {
+                      updateFurniture(item.id, {
+                        variantId: variant.id,
+                        width: variant.width,
+                        depth: variant.depth,
+                        height: variant.height,
+                        shutterCount: variant.shutterCount,
+                        drawerCount: variant.drawerCount,
+                      });
+                    }
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 outline-none"
+                >
+                  {furnitureCatalog
+                    .find((catalogItem) => catalogItem.id === (item as Furniture).catalogItemId)
+                    ?.variants.map((variant) => (
+                      <option key={variant.id} value={variant.id}>{variant.label}</option>
+                    ))}
+                </select>
+              </div>
+             )}
+            </>
+          )}
+
+          {isOpening && (
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Offset (%)</label>
+                <Input
+                  type="number"
+                  value={Math.round((item as any).offset * 100)}
+                  onChange={(v) => updateOpening(item.id, { offset: Math.max(0, Math.min(1, v / 100)) })}
+                />
+              </div>
+              <label className="flex items-center justify-between mt-6 text-[11px] text-slate-600 font-medium">
+                Flip Swing
+                <input
+                  type="checkbox"
+                  checked={(item as any).flip || false}
+                  onChange={(e) => updateOpening(item.id, { flip: e.target.checked })}
+                  className="accent-blue-600 h-3.5 w-3.5"
+                />
+              </label>
+            </div>
           )}
         </Section>
 
@@ -174,8 +239,8 @@ export const PropertiesSidebar: React.FC = () => {
               </div>
               <button
                 onClick={() => {
-                  if (isWall) updateWall(item.id, { color: undefined });
-                  else if (isFurniture) updateFurniture(item.id, { color: undefined });
+                  if (isWall) updateWall(item.id, { color: undefined, materialId: undefined });
+                  else if (isFurniture) updateFurniture(item.id, { color: undefined, materialId: undefined });
                 }}
                 className="text-[10px] font-bold text-blue-600 hover:underline"
               >
@@ -198,7 +263,7 @@ export const PropertiesSidebar: React.FC = () => {
                 {materialCategories.map(cat => (
                   <button key={cat} className={cn(
                     "whitespace-nowrap px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all",
-                    cat === 'Solid Paints' ? "bg-blue-600 border-blue-600 text-white shadow-sm" : "bg-white border-slate-200 text-slate-500"
+                    cat === materialCategories[0] ? "bg-blue-600 border-blue-600 text-white shadow-sm" : "bg-white border-slate-200 text-slate-500"
                   )}>
                     {cat}
                   </button>
@@ -206,26 +271,26 @@ export const PropertiesSidebar: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {colors.map((c) => {
-                  const currentColor = (isWall || isFurniture) ? (item as Wall | Furniture).color : undefined;
+                {materialCatalog.map((c) => {
+                  const currentMaterial = (isWall || isFurniture) ? (item as Wall | Furniture).materialId : undefined;
                   return (
                     <button
-                      key={c.value}
+                      key={c.id}
                       onClick={() => {
-                        if (isWall) updateWall(item.id, { color: c.value });
-                        else if (isFurniture) updateFurniture(item.id, { color: c.value });
+                        if (isWall) updateWall(item.id, { color: c.color, materialId: c.id });
+                        else if (isFurniture) updateFurniture(item.id, { color: c.color, materialId: c.id });
                       }}
                       className={cn(
                         "flex flex-col p-2 bg-white rounded-xl border-2 transition-all group shadow-sm hover:shadow-md",
-                        currentColor === c.value ? "border-blue-600 bg-blue-50/30" : "border-slate-100"
+                        currentMaterial === c.id ? "border-blue-600 bg-blue-50/30" : "border-slate-100"
                       )}
                     >
                       <div
                         className="w-full aspect-video rounded-lg shadow-inner mb-2"
-                        style={{ backgroundColor: c.value }}
+                        style={{ backgroundColor: c.color }}
                       />
                       <span className="text-[10px] font-bold text-slate-600 text-left line-clamp-1 truncate w-full">{c.name}</span>
-                      <span className="text-[9px] text-slate-400 font-medium">Color Code: {c.value.toUpperCase()}</span>
+                      <span className="text-[9px] text-slate-400 font-medium">{c.group} · ₹{c.rate}/{c.unit}</span>
                     </button>
                   );
                 })}

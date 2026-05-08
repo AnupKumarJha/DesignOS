@@ -14,6 +14,7 @@ export interface Wall {
   thickness: number;
   height: number;
   color?: string;
+  materialId?: string;
   skirtingHeight?: number;
   hasCornice?: boolean;
 }
@@ -26,6 +27,7 @@ export interface WallOpening {
   width: number;
   height: number;
   bottomHeight: number; // Distance from floor
+  flip?: boolean;
 }
 
 export interface Furniture {
@@ -37,6 +39,9 @@ export interface Furniture {
   depth: number;
   height: number;
   color?: string;
+  materialId?: string;
+  catalogItemId?: string;
+  variantId?: string;
   texture?: string;
   shutterCount?: number;
   drawerCount?: number;
@@ -45,10 +50,40 @@ export interface Furniture {
 }
 
 export type ViewMode = '2D' | '3D' | 'SPLIT';
+export type CameraPreset = 'FREE' | 'TOP' | 'FRONT' | 'SIDE' | 'ISLAND_FRONT';
+export type WorkspaceMode = 'DASHBOARD' | 'DESIGN';
 export type Tool = 'SELECT' | 'WALL' | 'FURNITURE' | 'WINDOW' | 'DOOR' | 'DELETE' | 'APPLY_FINISH';
 export type CatalogCategory = 'ARCHITECTURE' | 'FURNITURE' | 'FINISHES';
 
+export interface ProjectMeta {
+  id: string;
+  projectName: string;
+  clientName: string;
+  clientDetails: string;
+  projectId: string;
+  building: string;
+  floor: string;
+  room: string;
+  status: string;
+  updatedAt: string;
+}
+
+export interface DesignSnapshot {
+  schemaVersion: 1;
+  project: ProjectMeta;
+  walls: Wall[];
+  openings: WallOpening[];
+  furniture: Furniture[];
+  viewMode: ViewMode;
+  cameraPreset: CameraPreset;
+}
+
 interface AppState {
+  // Project
+  workspaceMode: WorkspaceMode;
+  project: ProjectMeta;
+  savedProjects: DesignSnapshot[];
+  
   // Data
   walls: Wall[];
   openings: WallOpening[];
@@ -57,6 +92,7 @@ interface AppState {
   
   // UI State
   viewMode: ViewMode;
+  cameraPreset: CameraPreset;
   activeTool: Tool;
   catalogOpen: boolean;
   activeCategory: CatalogCategory;
@@ -64,6 +100,11 @@ interface AppState {
   selectedCatalogItem: string | null;
   
   // Actions
+  setWorkspaceMode: (mode: WorkspaceMode) => void;
+  updateProject: (updates: Partial<ProjectMeta>) => void;
+  setSavedProjects: (projects: DesignSnapshot[]) => void;
+  loadSnapshot: (snapshot: DesignSnapshot) => void;
+  getSnapshot: () => DesignSnapshot;
   addWall: (wall: Wall) => void;
   removeWall: (id: string) => void;
   updateWall: (id: string, updates: Partial<Wall>) => void;
@@ -78,6 +119,7 @@ interface AppState {
 
   setSelection: (selection: { id: string, type: 'wall' | 'furniture' | 'opening' } | null) => void;
   setViewMode: (mode: ViewMode) => void;
+  setCameraPreset: (preset: CameraPreset) => void;
   setActiveTool: (tool: Tool) => void;
   setCatalogOpen: (open: boolean) => void;
   setActiveCategory: (cat: CatalogCategory) => void;
@@ -86,64 +128,127 @@ interface AppState {
   clearAll: () => void;
 }
 
+const createProject = (): ProjectMeta => {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    projectName: 'Namaste Design Studios',
+    clientName: 'Anup & Rishu',
+    clientDetails: '',
+    projectId: `PN-${Math.floor(10000 + Math.random() * 90000)}`,
+    building: 'Building 1',
+    floor: 'Ground Floor',
+    room: 'Kitchen',
+    status: 'Design Phase',
+    updatedAt: now,
+  };
+};
+
 export const useStore = create<AppState>()(
   temporal(
-    subscribeWithSelector((set) => ({
+    subscribeWithSelector((set, get) => ({
+      workspaceMode: 'DESIGN',
+      project: createProject(),
+      savedProjects: [],
       walls: [],
       openings: [],
       furniture: [],
       selection: null,
       viewMode: '2D',
+      cameraPreset: 'FREE',
       activeTool: 'SELECT',
       catalogOpen: true,
       activeCategory: 'ARCHITECTURE',
       activeFinish: null,
       selectedCatalogItem: null,
 
-      // ... existing actions
+      setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
+
+      updateProject: (updates) => set((state) => ({
+        project: { ...state.project, ...updates, updatedAt: new Date().toISOString() }
+      })),
+
+      setSavedProjects: (projects) => set({ savedProjects: projects }),
+
+      loadSnapshot: (snapshot) => set({
+        workspaceMode: 'DESIGN',
+        project: { ...snapshot.project, updatedAt: new Date().toISOString() },
+        walls: snapshot.walls,
+        openings: snapshot.openings,
+        furniture: snapshot.furniture,
+        viewMode: snapshot.viewMode,
+        cameraPreset: snapshot.cameraPreset,
+        selection: null,
+        activeTool: 'SELECT',
+      }),
+
+      getSnapshot: () => {
+        const state = get();
+        return {
+          schemaVersion: 1,
+          project: { ...state.project, updatedAt: new Date().toISOString() },
+          walls: state.walls,
+          openings: state.openings,
+          furniture: state.furniture,
+          viewMode: state.viewMode,
+          cameraPreset: state.cameraPreset,
+        };
+      },
+
       addWall: (wall) => set((state) => ({ 
-        walls: [...state.walls, wall] 
+        walls: [...state.walls, wall],
+        project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
       removeWall: (id) => set((state) => ({ 
         walls: state.walls.filter((w) => w.id !== id),
         openings: state.openings.filter((o) => o.wallId !== id),
-        selection: state.selection?.id === id ? null : state.selection
+        selection: state.selection?.id === id ? null : state.selection,
+        project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
       updateWall: (id, updates) => set((state) => ({
-        walls: state.walls.map((w) => w.id === id ? { ...w, ...updates } : w)
+        walls: state.walls.map((w) => w.id === id ? { ...w, ...updates } : w),
+        project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
       addOpening: (opening) => set((state) => ({
-        openings: [...state.openings, opening]
+        openings: [...state.openings, opening],
+        project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
       removeOpening: (id) => set((state) => ({
         openings: state.openings.filter((o) => o.id !== id),
-        selection: state.selection?.id === id ? null : state.selection
+        selection: state.selection?.id === id ? null : state.selection,
+        project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
       updateOpening: (id, updates) => set((state) => ({
-        openings: state.openings.map((o) => o.id === id ? { ...o, ...updates } : o)
+        openings: state.openings.map((o) => o.id === id ? { ...o, ...updates } : o),
+        project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
       addFurniture: (item) => set((state) => ({
-        furniture: [...state.furniture, item]
+        furniture: [...state.furniture, item],
+        project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
       removeFurniture: (id) => set((state) => ({
         furniture: state.furniture.filter((f) => f.id !== id),
-        selection: state.selection?.id === id ? null : state.selection
+        selection: state.selection?.id === id ? null : state.selection,
+        project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
       updateFurniture: (id, updates) => set((state) => ({
-        furniture: state.furniture.map((f) => f.id === id ? { ...f, ...updates } : f)
+        furniture: state.furniture.map((f) => f.id === id ? { ...f, ...updates } : f),
+        project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
       setSelection: (selection) => set({ selection }),
 
       setViewMode: (mode) => set({ viewMode: mode }),
+
+      setCameraPreset: (preset) => set({ cameraPreset: preset }),
 
       setActiveTool: (tool) => set({ activeTool: tool }),
 
@@ -153,7 +258,13 @@ export const useStore = create<AppState>()(
 
       setActiveFinish: (finish) => set({ activeFinish: finish }),
       setSelectedCatalogItem: (id) => set({ selectedCatalogItem: id }),
-      clearAll: () => set({ walls: [], furniture: [], openings: [], selection: null }),
+      clearAll: () => set({
+        walls: [],
+        furniture: [],
+        openings: [],
+        selection: null,
+        project: { ...get().project, updatedAt: new Date().toISOString() }
+      }),
     })),
     {
       limit: 50,
