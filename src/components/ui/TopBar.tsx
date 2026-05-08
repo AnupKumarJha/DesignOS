@@ -120,7 +120,7 @@ export const TopBar: React.FC = () => {
             <Layout size={14} className="text-white" />
           </div>
           <span className="font-bold text-slate-800 text-sm tracking-tight italic">
-            infurnia <span className="font-normal text-slate-400 not-italic">Design</span>
+            Design <span className="font-normal text-slate-400 not-italic">OS</span>
           </span>
         </div>
 
