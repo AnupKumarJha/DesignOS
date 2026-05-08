@@ -1,0 +1,6 @@
+{
+  "name": "Namaste Design - Custom Canvas POC",
+  "description": "A high-performance 2D/3D interior design canvas POC using React, Konva, and Three.js.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
