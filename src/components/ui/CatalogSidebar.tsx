@@ -10,6 +10,7 @@ import {
   Search,
   Filter,
   X,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { furnitureCatalog, materialCatalog, RoomType } from '../../data/catalog';
@@ -40,7 +41,9 @@ export const CatalogSidebar: React.FC = () => {
     setActiveCategory,
     activeTool,
     setActiveTool,
+    activeFinish,
     setActiveFinish,
+    selectedCatalogItem,
     setSelectedCatalogItem,
     catalogWidth,
     setCatalogWidth,
@@ -49,7 +52,11 @@ export const CatalogSidebar: React.FC = () => {
   const [search, setSearch] = useState('');
   const [roomFilter, setRoomFilter] = useState<'All' | RoomType>('All');
   const [resizing, setResizing] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const resizingRef = useRef(false);
+
+  const toggleGroup = (group: string) =>
+    setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
 
   useEffect(() => {
     if (!resizing) return;
@@ -244,49 +251,83 @@ export const CatalogSidebar: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {Object.entries(filteredAndGrouped).map(([group, groupItems]) => (
-              <div key={group}>
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                  {group}
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {groupItems.map((item) => {
-                    const f =
-                      item.category === 'FURNITURE'
-                        ? furnitureCatalog.find((c) => c.id === item.id)
-                        : undefined;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          if (item.tool) setActiveTool(item.tool);
-                          setSelectedCatalogItem(item.id);
-                          if (item.category === 'FINISHES') {
-                            setActiveFinish(item.id);
-                          }
-                        }}
+            {Object.entries(filteredAndGrouped).map(([group, groupItems]) => {
+              const collapsed = !!collapsedGroups[group];
+              return (
+                <div key={group}>
+                  <button
+                    onClick={() => toggleGroup(group)}
+                    className="w-full flex items-center justify-between mb-2 px-1 group/header hover:opacity-80 transition-opacity"
+                  >
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <ChevronDown
+                        size={11}
                         className={cn(
-                          'flex flex-col items-center justify-center aspect-square rounded-xl bg-white border-2 border-transparent shadow-sm hover:shadow-md transition-all group p-2',
-                          activeTool === item.tool && 'border-blue-500 ring-2 ring-blue-100',
+                          'transition-transform text-slate-400',
+                          collapsed && '-rotate-90',
                         )}
-                      >
-                        <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform mb-2">
-                          <item.icon size={24} className="text-slate-600" />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-700 line-clamp-1 w-full text-center">
-                          {item.name}
-                        </span>
-                        {f?.brand && (
-                          <span className="text-[8px] font-bold text-slate-400 mt-0.5 line-clamp-1">
-                            {f.brand}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                      />
+                      {group}
+                      <span className="text-slate-300 font-bold">· {groupItems.length}</span>
+                    </h3>
+                  </button>
+                  {!collapsed && (
+                    <div
+                      className="grid gap-3"
+                      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}
+                    >
+                      {groupItems.map((item) => {
+                        const f =
+                          item.category === 'FURNITURE'
+                            ? furnitureCatalog.find((c) => c.id === item.id)
+                            : undefined;
+                        const isSelected =
+                          item.category === 'ARCHITECTURE'
+                            ? activeTool === item.tool
+                            : item.category === 'FINISHES'
+                            ? activeFinish === item.id
+                            : selectedCatalogItem === item.id && activeTool === 'FURNITURE';
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                // Toggle off
+                                setActiveTool('SELECT');
+                                setSelectedCatalogItem(null);
+                                if (item.category === 'FINISHES') setActiveFinish(null);
+                                return;
+                              }
+                              if (item.tool) setActiveTool(item.tool);
+                              setSelectedCatalogItem(item.id);
+                              if (item.category === 'FINISHES') {
+                                setActiveFinish(item.id);
+                              }
+                            }}
+                            className={cn(
+                              'flex flex-col items-center justify-center aspect-square rounded-xl bg-white border-2 border-transparent shadow-sm hover:shadow-md transition-all group p-2',
+                              isSelected && 'border-blue-500 ring-2 ring-blue-100',
+                            )}
+                          >
+                            <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform mb-2">
+                              <item.icon size={24} className="text-slate-600" />
+                            </div>
+                            <span className="text-[11px] font-bold text-slate-700 line-clamp-1 w-full text-center">
+                              {item.name}
+                            </span>
+                            {f?.brand && (
+                              <span className="text-[8px] font-bold text-slate-400 mt-0.5 line-clamp-1">
+                                {f.brand}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
