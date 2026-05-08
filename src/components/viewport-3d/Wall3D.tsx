@@ -70,7 +70,7 @@ export const Wall3D: React.FC<Wall3DProps> = ({ wall, openings, isSelected, dept
   }, [length, wall.height, wall.thickness, openings]);
 
   return (
-    <group position={[wall.start.x, 0, -wall.start.y]} rotation={[0, -angle, 0]}>
+    <group position={[wall.start.x, 0, -wall.start.y]} rotation={[0, angle, 0]}>
       <mesh
         geometry={geometry}
         onClick={(e) => {

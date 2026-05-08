@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { Furniture } from '../../store/useStore';
 import { COLORS } from '../../lib/constants';
-import { getMaterial } from '../../data/catalog';
+import { getCatalogItem, getMaterial } from '../../data/catalog';
 import { getMaterialTexture, getFinishProps } from '../../lib/materialTexture';
 
 interface Furniture3DProps {
@@ -15,9 +15,12 @@ export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, onCl
   const isWallCabinet = item.type === 'CABINET_WALL';
   const hasSkirting = (item.skirtingHeight || 0) > 0;
 
-  // Base height offset
-  const yBase = isWallCabinet ? 1500 : 0;
-  const yPos = yBase + (item.height / 2) + (item.skirtingHeight || 0);
+  // Mount height: prefer catalog mountHeight (e.g. TV unit at 600, mirror at 1100,
+  // chimney at 1700, wall cabinet at 1500), fall back to type-based default.
+  const catalogItem = getCatalogItem(item.catalogItemId);
+  const mountHeight =
+    catalogItem?.mountHeight ?? (isWallCabinet ? 1500 : 0);
+  const yPos = mountHeight + (item.height / 2) + (item.skirtingHeight || 0);
 
   // Material → texture map + PBR finish
   const material = getMaterial(item.materialId);

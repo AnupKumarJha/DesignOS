@@ -12,6 +12,16 @@ export interface CatalogVariant {
   drawerCount?: number;
 }
 
+export type RoomType =
+  | 'Kitchen'
+  | 'Bedroom'
+  | 'Living'
+  | 'Dining'
+  | 'Bathroom'
+  | 'Office'
+  | 'Kids'
+  | 'Outdoor';
+
 export interface FurnitureCatalogItem {
   id: string;
   name: string;
@@ -23,6 +33,10 @@ export interface FurnitureCatalogItem {
   variants: CatalogVariant[];
   hasHandle?: boolean;
   skirtingHeight?: number;
+  brand?: string;        // e.g. 'Hettich', 'Hafele', 'Godrej', 'Sleek'
+  sku?: string;          // brand SKU code
+  roomTypes?: RoomType[]; // which rooms this item belongs to (for filtering)
+  mountHeight?: number;  // default Y elevation in mm (0 = floor, 1500 = wall-mounted, etc.)
 }
 
 export type FinishType = 'Matte' | 'Glossy' | 'Textured' | 'Natural' | 'Polished' | 'Reflective';
@@ -55,6 +69,9 @@ const cabinetVariants = (prefix: string, depth: number, height: number, price: n
   }));
 
 export const furnitureCatalog: FurnitureCatalogItem[] = [
+  // ──────────────────────────────────────────────────────────────────
+  // KITCHEN — base, wall, tall, sink, corner, pullout
+  // ──────────────────────────────────────────────────────────────────
   {
     id: 'cabinet_base',
     name: 'Base Cabinet',
@@ -62,6 +79,9 @@ export const furnitureCatalog: FurnitureCatalogItem[] = [
     type: 'CABINET_BASE',
     category: 'FURNITURE',
     tags: ['kitchen', 'shutter'],
+    roomTypes: ['Kitchen'],
+    brand: 'Sleek',
+    sku: 'SK-BC-600',
     defaultVariantId: 'base_600',
     variants: cabinetVariants('base', 560, 720, 12000),
     hasHandle: true,
@@ -74,6 +94,9 @@ export const furnitureCatalog: FurnitureCatalogItem[] = [
     type: 'CABINET_BASE',
     category: 'FURNITURE',
     tags: ['kitchen', 'drawer'],
+    roomTypes: ['Kitchen'],
+    brand: 'Hettich',
+    sku: 'HT-DRW-600',
     defaultVariantId: 'drawer_600',
     variants: cabinetVariants('drawer', 560, 720, 15500).map((variant) => ({ ...variant, drawerCount: 3 })),
     hasHandle: true,
@@ -86,6 +109,9 @@ export const furnitureCatalog: FurnitureCatalogItem[] = [
     type: 'CABINET_BASE',
     category: 'FURNITURE',
     tags: ['kitchen', 'open'],
+    roomTypes: ['Kitchen'],
+    brand: 'Sleek',
+    sku: 'SK-OP-600',
     defaultVariantId: 'open_600',
     variants: cabinetVariants('open', 560, 720, 9000).map((variant) => ({ ...variant, shutterCount: 0 })),
     skirtingHeight: 100,
@@ -97,6 +123,9 @@ export const furnitureCatalog: FurnitureCatalogItem[] = [
     type: 'CABINET_BASE',
     category: 'FURNITURE',
     tags: ['kitchen', 'pullout'],
+    roomTypes: ['Kitchen'],
+    brand: 'Hettich',
+    sku: 'HT-PO-300',
     defaultVariantId: 'pullout_300',
     variants: [
       { id: 'pullout_300', label: '300W x 560D x 720H', width: 300, depth: 560, height: 720, price: 9500, unit: 'unit', shutterCount: 1 },
@@ -112,6 +141,9 @@ export const furnitureCatalog: FurnitureCatalogItem[] = [
     type: 'SINK_UNIT',
     category: 'FURNITURE',
     tags: ['kitchen', 'plumbing'],
+    roomTypes: ['Kitchen'],
+    brand: 'Franke',
+    sku: 'FR-SINK-800',
     defaultVariantId: 'sink_800',
     variants: [
       { id: 'sink_800', label: '800W x 560D x 720H', width: 800, depth: 560, height: 720, price: 15000, unit: 'unit', shutterCount: 2 },
@@ -127,6 +159,9 @@ export const furnitureCatalog: FurnitureCatalogItem[] = [
     type: 'CABINET_BASE',
     category: 'FURNITURE',
     tags: ['kitchen', 'corner'],
+    roomTypes: ['Kitchen'],
+    brand: 'Hafele',
+    sku: 'HF-MAGIC-900',
     defaultVariantId: 'corner_900',
     variants: [
       { id: 'corner_900', label: '900W x 900D x 720H', width: 900, depth: 900, height: 720, price: 24000, unit: 'unit', shutterCount: 2 },
@@ -141,22 +176,84 @@ export const furnitureCatalog: FurnitureCatalogItem[] = [
     type: 'CABINET_WALL',
     category: 'FURNITURE',
     tags: ['kitchen', 'wall mounted'],
+    roomTypes: ['Kitchen'],
+    brand: 'Sleek',
+    sku: 'SK-WC-600',
     defaultVariantId: 'wall_600',
     variants: cabinetVariants('wall', 320, 720, 8000),
     hasHandle: true,
+    mountHeight: 1500,
   },
   {
     id: 'cabinet_tall',
-    name: 'Tall Unit',
+    name: 'Tall Storage Unit',
     group: 'Tall Units',
     type: 'CABINET_TALL',
     category: 'FURNITURE',
-    tags: ['kitchen', 'storage'],
+    tags: ['kitchen', 'storage', 'tall'],
+    roomTypes: ['Kitchen', 'Bathroom'],
+    brand: 'Hafele',
+    sku: 'HF-TALL-600',
     defaultVariantId: 'tall_600',
     variants: cabinetVariants('tall', 560, 2040, 25000),
     hasHandle: true,
     skirtingHeight: 100,
   },
+  {
+    id: 'chimney_unit',
+    name: 'Chimney Hood',
+    group: 'Appliances',
+    type: 'CABINET_WALL',
+    category: 'FURNITURE',
+    tags: ['kitchen', 'appliance', 'ventilation'],
+    roomTypes: ['Kitchen'],
+    brand: 'Faber',
+    sku: 'FB-CH-900',
+    mountHeight: 1700,
+    defaultVariantId: 'chimney_900',
+    variants: [
+      { id: 'chimney_600', label: '600W x 500D x 600H', width: 600, depth: 500, height: 600, price: 22000, unit: 'unit', shutterCount: 0 },
+      { id: 'chimney_900', label: '900W x 500D x 600H', width: 900, depth: 500, height: 600, price: 28000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'hob_unit',
+    name: 'Cooktop / Hob',
+    group: 'Appliances',
+    type: 'CABINET_BASE',
+    category: 'FURNITURE',
+    tags: ['kitchen', 'appliance', 'cooking'],
+    roomTypes: ['Kitchen'],
+    brand: 'Bosch',
+    sku: 'BS-HOB-700',
+    defaultVariantId: 'hob_700',
+    variants: [
+      { id: 'hob_700', label: '700W x 560D x 50H', width: 700, depth: 560, height: 50, price: 18000, unit: 'unit', shutterCount: 0 },
+      { id: 'hob_900', label: '900W x 560D x 50H', width: 900, depth: 560, height: 50, price: 24000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'fridge_unit',
+    name: 'Fridge',
+    group: 'Appliances',
+    type: 'CABINET_TALL',
+    category: 'FURNITURE',
+    tags: ['kitchen', 'appliance'],
+    roomTypes: ['Kitchen'],
+    brand: 'Samsung',
+    sku: 'SM-FRG-700',
+    defaultVariantId: 'fridge_700',
+    variants: [
+      { id: 'fridge_600', label: '600W x 650D x 1700H', width: 600, depth: 650, height: 1700, price: 38000, unit: 'unit', shutterCount: 1 },
+      { id: 'fridge_700', label: '700W x 700D x 1800H', width: 700, depth: 700, height: 1800, price: 52000, unit: 'unit', shutterCount: 2 },
+    ],
+    hasHandle: true,
+    skirtingHeight: 0,
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // BEDROOM — beds, wardrobes, nightstands, dressers
+  // ──────────────────────────────────────────────────────────────────
   {
     id: 'wardrobe',
     name: 'Wardrobe',
@@ -164,14 +261,504 @@ export const furnitureCatalog: FurnitureCatalogItem[] = [
     type: 'WARDROBE',
     category: 'FURNITURE',
     tags: ['bedroom', 'storage'],
+    roomTypes: ['Bedroom'],
+    brand: 'Godrej Interio',
+    sku: 'GI-WD-1200',
     defaultVariantId: 'wardrobe_1200',
     variants: [
-      { id: 'wardrobe_900', label: '900W x 600D x 2100H', width: 900, depth: 600, height: 2100, price: 32000, unit: 'unit', shutterCount: 2 },
-      { id: 'wardrobe_1200', label: '1200W x 600D x 2100H', width: 1200, depth: 600, height: 2100, price: 42000, unit: 'unit', shutterCount: 3 },
-      { id: 'wardrobe_1800', label: '1800W x 600D x 2100H', width: 1800, depth: 600, height: 2100, price: 62000, unit: 'unit', shutterCount: 4 },
+      { id: 'wardrobe_900', label: '900W x 600D x 2100H · 2 Shutter', width: 900, depth: 600, height: 2100, price: 32000, unit: 'unit', shutterCount: 2 },
+      { id: 'wardrobe_1200', label: '1200W x 600D x 2100H · 3 Shutter', width: 1200, depth: 600, height: 2100, price: 42000, unit: 'unit', shutterCount: 3 },
+      { id: 'wardrobe_1800', label: '1800W x 600D x 2100H · 4 Shutter', width: 1800, depth: 600, height: 2100, price: 62000, unit: 'unit', shutterCount: 4 },
+      { id: 'wardrobe_2400', label: '2400W x 600D x 2100H · 6 Shutter', width: 2400, depth: 600, height: 2100, price: 84000, unit: 'unit', shutterCount: 6 },
     ],
     hasHandle: true,
     skirtingHeight: 100,
+  },
+  {
+    id: 'sliding_wardrobe',
+    name: 'Sliding Wardrobe',
+    group: 'Wardrobes',
+    type: 'WARDROBE',
+    category: 'FURNITURE',
+    tags: ['bedroom', 'storage', 'sliding'],
+    roomTypes: ['Bedroom'],
+    brand: 'Hettich',
+    sku: 'HT-SLD-2000',
+    defaultVariantId: 'sliding_2000',
+    variants: [
+      { id: 'sliding_2000', label: '2000W x 650D x 2300H · Sliding', width: 2000, depth: 650, height: 2300, price: 78000, unit: 'unit', shutterCount: 2 },
+      { id: 'sliding_2500', label: '2500W x 650D x 2400H · Sliding', width: 2500, depth: 650, height: 2400, price: 95000, unit: 'unit', shutterCount: 3 },
+    ],
+    hasHandle: false,
+    skirtingHeight: 100,
+  },
+  {
+    id: 'bed_single',
+    name: 'Single Bed',
+    group: 'Beds',
+    type: 'BED',
+    category: 'FURNITURE',
+    tags: ['bedroom', 'bed'],
+    roomTypes: ['Bedroom', 'Kids'],
+    brand: 'Urban Ladder',
+    sku: 'UL-BED-S',
+    defaultVariantId: 'bed_single_900',
+    variants: [
+      { id: 'bed_single_900', label: '900W x 1900D x 350H', width: 900, depth: 1900, height: 350, price: 22000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'bed_queen',
+    name: 'Queen Bed (Storage)',
+    group: 'Beds',
+    type: 'BED',
+    category: 'FURNITURE',
+    tags: ['bedroom', 'bed', 'storage'],
+    roomTypes: ['Bedroom'],
+    brand: 'Wakefit',
+    sku: 'WK-BED-Q',
+    defaultVariantId: 'bed_queen_1500',
+    variants: [
+      { id: 'bed_queen_1500', label: '1500W x 2000D x 400H', width: 1500, depth: 2000, height: 400, price: 38000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'bed_king',
+    name: 'King Bed (Storage)',
+    group: 'Beds',
+    type: 'BED',
+    category: 'FURNITURE',
+    tags: ['bedroom', 'bed', 'storage'],
+    roomTypes: ['Bedroom'],
+    brand: 'Urban Ladder',
+    sku: 'UL-BED-K',
+    defaultVariantId: 'bed_king_1800',
+    variants: [
+      { id: 'bed_king_1800', label: '1800W x 2000D x 400H', width: 1800, depth: 2000, height: 400, price: 48000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'nightstand',
+    name: 'Bedside Table',
+    group: 'Bedside',
+    type: 'NIGHTSTAND',
+    category: 'FURNITURE',
+    tags: ['bedroom', 'storage'],
+    roomTypes: ['Bedroom'],
+    brand: 'Pepperfry',
+    sku: 'PF-NS-450',
+    defaultVariantId: 'nightstand_450',
+    variants: [
+      { id: 'nightstand_450', label: '450W x 400D x 550H', width: 450, depth: 400, height: 550, price: 6500, unit: 'unit', drawerCount: 2 },
+    ],
+    hasHandle: true,
+  },
+  {
+    id: 'dresser',
+    name: 'Chest of Drawers',
+    group: 'Dressers',
+    type: 'DRESSER',
+    category: 'FURNITURE',
+    tags: ['bedroom', 'drawer', 'storage'],
+    roomTypes: ['Bedroom'],
+    brand: 'Godrej Interio',
+    sku: 'GI-DR-1000',
+    defaultVariantId: 'dresser_1000',
+    variants: [
+      { id: 'dresser_900', label: '900W x 500D x 950H · 5 Drawer', width: 900, depth: 500, height: 950, price: 24000, unit: 'unit', drawerCount: 5 },
+      { id: 'dresser_1000', label: '1000W x 500D x 1050H · 6 Drawer', width: 1000, depth: 500, height: 1050, price: 28000, unit: 'unit', drawerCount: 6 },
+    ],
+    hasHandle: true,
+  },
+  {
+    id: 'dressing_table',
+    name: 'Dressing Table',
+    group: 'Dressers',
+    type: 'DRESSER',
+    category: 'FURNITURE',
+    tags: ['bedroom', 'mirror', 'vanity'],
+    roomTypes: ['Bedroom'],
+    brand: 'HomeTown',
+    sku: 'HT-DT-1100',
+    defaultVariantId: 'dt_1100',
+    variants: [
+      { id: 'dt_1100', label: '1100W x 450D x 1700H', width: 1100, depth: 450, height: 1700, price: 22000, unit: 'unit', drawerCount: 3 },
+    ],
+    hasHandle: true,
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // LIVING ROOM
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: 'sofa_2seater',
+    name: '2-Seater Sofa',
+    group: 'Sofas',
+    type: 'SOFA',
+    category: 'FURNITURE',
+    tags: ['living', 'seating'],
+    roomTypes: ['Living'],
+    brand: 'Urban Ladder',
+    sku: 'UL-SF-2',
+    defaultVariantId: 'sofa_2_1500',
+    variants: [
+      { id: 'sofa_2_1500', label: '1500W x 850D x 850H', width: 1500, depth: 850, height: 850, price: 35000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'sofa_3seater',
+    name: '3-Seater Sofa',
+    group: 'Sofas',
+    type: 'SOFA',
+    category: 'FURNITURE',
+    tags: ['living', 'seating'],
+    roomTypes: ['Living'],
+    brand: 'Urban Ladder',
+    sku: 'UL-SF-3',
+    defaultVariantId: 'sofa_3_2200',
+    variants: [
+      { id: 'sofa_3_2200', label: '2200W x 900D x 850H', width: 2200, depth: 900, height: 850, price: 55000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'sofa_lshape',
+    name: 'L-Shape Sectional',
+    group: 'Sofas',
+    type: 'SOFA',
+    category: 'FURNITURE',
+    tags: ['living', 'seating', 'sectional'],
+    roomTypes: ['Living'],
+    brand: 'Urban Ladder',
+    sku: 'UL-SF-L',
+    defaultVariantId: 'sofa_l_2800',
+    variants: [
+      { id: 'sofa_l_2800', label: '2800W x 1700D x 850H', width: 2800, depth: 1700, height: 850, price: 95000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'armchair',
+    name: 'Accent Armchair',
+    group: 'Seating',
+    type: 'CHAIR',
+    category: 'FURNITURE',
+    tags: ['living', 'seating', 'accent'],
+    roomTypes: ['Living', 'Bedroom'],
+    brand: 'Pepperfry',
+    sku: 'PF-AC-1',
+    defaultVariantId: 'arm_750',
+    variants: [
+      { id: 'arm_750', label: '750W x 800D x 850H', width: 750, depth: 800, height: 850, price: 18000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'coffee_table',
+    name: 'Coffee Table',
+    group: 'Tables',
+    type: 'COFFEE_TABLE',
+    category: 'FURNITURE',
+    tags: ['living', 'table', 'low'],
+    roomTypes: ['Living'],
+    brand: 'Pepperfry',
+    sku: 'PF-CT-1200',
+    defaultVariantId: 'coffee_1200',
+    variants: [
+      { id: 'coffee_900', label: '900W x 600D x 400H', width: 900, depth: 600, height: 400, price: 12000, unit: 'unit', shutterCount: 0 },
+      { id: 'coffee_1200', label: '1200W x 700D x 400H', width: 1200, depth: 700, height: 400, price: 16500, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'side_table',
+    name: 'Side Table',
+    group: 'Tables',
+    type: 'TABLE',
+    category: 'FURNITURE',
+    tags: ['living', 'table'],
+    roomTypes: ['Living', 'Bedroom'],
+    brand: 'Pepperfry',
+    sku: 'PF-ST-450',
+    defaultVariantId: 'side_450',
+    variants: [
+      { id: 'side_450', label: '450W x 450D x 550H', width: 450, depth: 450, height: 550, price: 6500, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'tv_unit_low',
+    name: 'TV Unit (Low)',
+    group: 'TV Units',
+    type: 'TV_UNIT',
+    category: 'FURNITURE',
+    tags: ['living', 'media', 'tv'],
+    roomTypes: ['Living', 'Bedroom'],
+    brand: 'Godrej Interio',
+    sku: 'GI-TV-1800',
+    defaultVariantId: 'tv_1800',
+    variants: [
+      { id: 'tv_1500', label: '1500W x 450D x 500H', width: 1500, depth: 450, height: 500, price: 22000, unit: 'unit', drawerCount: 2 },
+      { id: 'tv_1800', label: '1800W x 450D x 500H', width: 1800, depth: 450, height: 500, price: 28000, unit: 'unit', drawerCount: 2, shutterCount: 2 },
+      { id: 'tv_2400', label: '2400W x 500D x 550H', width: 2400, depth: 500, height: 550, price: 38000, unit: 'unit', drawerCount: 2, shutterCount: 4 },
+    ],
+    hasHandle: true,
+    skirtingHeight: 0,
+  },
+  {
+    id: 'bookshelf',
+    name: 'Bookshelf',
+    group: 'Shelving',
+    type: 'BOOKSHELF',
+    category: 'FURNITURE',
+    tags: ['living', 'storage', 'books'],
+    roomTypes: ['Living', 'Office'],
+    brand: 'Pepperfry',
+    sku: 'PF-BK-900',
+    defaultVariantId: 'book_900',
+    variants: [
+      { id: 'book_900', label: '900W x 350D x 1800H', width: 900, depth: 350, height: 1800, price: 18000, unit: 'unit', shutterCount: 0 },
+      { id: 'book_1200', label: '1200W x 350D x 2100H', width: 1200, depth: 350, height: 2100, price: 26000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'console_unit',
+    name: 'Console Table',
+    group: 'Tables',
+    type: 'CONSOLE' as any,
+    category: 'FURNITURE',
+    tags: ['living', 'foyer', 'narrow'],
+    roomTypes: ['Living'],
+    brand: 'HomeTown',
+    sku: 'HT-CN-1200',
+    defaultVariantId: 'console_1200',
+    variants: [
+      { id: 'console_1200', label: '1200W x 350D x 800H', width: 1200, depth: 350, height: 800, price: 14500, unit: 'unit', drawerCount: 2 },
+    ],
+    hasHandle: true,
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // DINING ROOM
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: 'dining_4',
+    name: 'Dining Table (4-Seater)',
+    group: 'Dining Tables',
+    type: 'DINING_TABLE',
+    category: 'FURNITURE',
+    tags: ['dining', 'table'],
+    roomTypes: ['Dining'],
+    brand: 'Urban Ladder',
+    sku: 'UL-DT-4',
+    defaultVariantId: 'dining_4_1200',
+    variants: [
+      { id: 'dining_4_1200', label: '1200W x 800D x 750H', width: 1200, depth: 800, height: 750, price: 28000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'dining_6',
+    name: 'Dining Table (6-Seater)',
+    group: 'Dining Tables',
+    type: 'DINING_TABLE',
+    category: 'FURNITURE',
+    tags: ['dining', 'table'],
+    roomTypes: ['Dining'],
+    brand: 'Urban Ladder',
+    sku: 'UL-DT-6',
+    defaultVariantId: 'dining_6_1800',
+    variants: [
+      { id: 'dining_6_1800', label: '1800W x 900D x 750H', width: 1800, depth: 900, height: 750, price: 42000, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'dining_chair',
+    name: 'Dining Chair',
+    group: 'Chairs',
+    type: 'CHAIR',
+    category: 'FURNITURE',
+    tags: ['dining', 'seating'],
+    roomTypes: ['Dining'],
+    brand: 'Pepperfry',
+    sku: 'PF-DC-1',
+    defaultVariantId: 'dchair_450',
+    variants: [
+      { id: 'dchair_450', label: '450W x 500D x 900H', width: 450, depth: 500, height: 900, price: 5500, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'crockery_unit',
+    name: 'Crockery Unit',
+    group: 'Storage',
+    type: 'CABINET_TALL',
+    category: 'FURNITURE',
+    tags: ['dining', 'crockery', 'glass'],
+    roomTypes: ['Dining'],
+    brand: 'Godrej Interio',
+    sku: 'GI-CR-1200',
+    defaultVariantId: 'crockery_1200',
+    variants: [
+      { id: 'crockery_1200', label: '1200W x 450D x 2000H', width: 1200, depth: 450, height: 2000, price: 38000, unit: 'unit', shutterCount: 4 },
+    ],
+    hasHandle: true,
+    skirtingHeight: 100,
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // BATHROOM
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: 'vanity_single',
+    name: 'Vanity (Single Sink)',
+    group: 'Vanity',
+    type: 'VANITY',
+    category: 'FURNITURE',
+    tags: ['bathroom', 'sink', 'vanity'],
+    roomTypes: ['Bathroom'],
+    brand: 'Hindware',
+    sku: 'HW-VN-900',
+    defaultVariantId: 'vanity_900',
+    variants: [
+      { id: 'vanity_900', label: '900W x 500D x 850H', width: 900, depth: 500, height: 850, price: 22000, unit: 'unit', drawerCount: 2 },
+      { id: 'vanity_1200', label: '1200W x 500D x 850H', width: 1200, depth: 500, height: 850, price: 28000, unit: 'unit', drawerCount: 3 },
+    ],
+    hasHandle: true,
+    skirtingHeight: 0,
+  },
+  {
+    id: 'vanity_double',
+    name: 'Vanity (Double Sink)',
+    group: 'Vanity',
+    type: 'VANITY',
+    category: 'FURNITURE',
+    tags: ['bathroom', 'sink', 'vanity'],
+    roomTypes: ['Bathroom'],
+    brand: 'Cera',
+    sku: 'CR-VN-1500',
+    defaultVariantId: 'vanity_dbl_1500',
+    variants: [
+      { id: 'vanity_dbl_1500', label: '1500W x 500D x 850H', width: 1500, depth: 500, height: 850, price: 38000, unit: 'unit', drawerCount: 4 },
+    ],
+    hasHandle: true,
+    skirtingHeight: 0,
+  },
+  {
+    id: 'mirror_cabinet',
+    name: 'Mirror Cabinet',
+    group: 'Mirrors',
+    type: 'MIRROR',
+    category: 'FURNITURE',
+    tags: ['bathroom', 'mirror', 'storage'],
+    roomTypes: ['Bathroom'],
+    brand: 'Hindware',
+    sku: 'HW-MC-700',
+    mountHeight: 1100,
+    defaultVariantId: 'mirror_700',
+    variants: [
+      { id: 'mirror_700', label: '700W x 150D x 800H', width: 700, depth: 150, height: 800, price: 9500, unit: 'unit', shutterCount: 1 },
+    ],
+    hasHandle: true,
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // OFFICE / STUDY
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: 'desk',
+    name: 'Office Desk',
+    group: 'Desks',
+    type: 'DESK',
+    category: 'FURNITURE',
+    tags: ['office', 'work', 'desk'],
+    roomTypes: ['Office', 'Bedroom'],
+    brand: 'Featherlite',
+    sku: 'FT-DSK-1200',
+    defaultVariantId: 'desk_1200',
+    variants: [
+      { id: 'desk_1200', label: '1200W x 600D x 750H', width: 1200, depth: 600, height: 750, price: 16500, unit: 'unit', drawerCount: 2 },
+      { id: 'desk_1500', label: '1500W x 600D x 750H', width: 1500, depth: 600, height: 750, price: 22000, unit: 'unit', drawerCount: 2 },
+    ],
+    hasHandle: true,
+  },
+  {
+    id: 'desk_l_shape',
+    name: 'L-Shape Desk',
+    group: 'Desks',
+    type: 'DESK',
+    category: 'FURNITURE',
+    tags: ['office', 'desk', 'corner'],
+    roomTypes: ['Office'],
+    brand: 'Godrej Interio',
+    sku: 'GI-LDK-1800',
+    defaultVariantId: 'lshape_1800',
+    variants: [
+      { id: 'lshape_1800', label: '1800W x 1500D x 750H', width: 1800, depth: 1500, height: 750, price: 38000, unit: 'unit', drawerCount: 3 },
+    ],
+    hasHandle: true,
+  },
+  {
+    id: 'office_chair',
+    name: 'Ergonomic Office Chair',
+    group: 'Chairs',
+    type: 'OFFICE_CHAIR',
+    category: 'FURNITURE',
+    tags: ['office', 'seating', 'ergonomic'],
+    roomTypes: ['Office'],
+    brand: 'Featherlite',
+    sku: 'FT-OC-1',
+    defaultVariantId: 'oc_650',
+    variants: [
+      { id: 'oc_650', label: '650W x 650D x 1100H', width: 650, depth: 650, height: 1100, price: 14500, unit: 'unit', shutterCount: 0 },
+    ],
+  },
+  {
+    id: 'filing_cabinet',
+    name: 'Filing Cabinet',
+    group: 'Office Storage',
+    type: 'CABINET_TALL',
+    category: 'FURNITURE',
+    tags: ['office', 'filing', 'storage'],
+    roomTypes: ['Office'],
+    brand: 'Godrej Interio',
+    sku: 'GI-FC-450',
+    defaultVariantId: 'fc_450',
+    variants: [
+      { id: 'fc_450', label: '450W x 500D x 1300H · 4 Drawer', width: 450, depth: 500, height: 1300, price: 18000, unit: 'unit', drawerCount: 4 },
+    ],
+    hasHandle: true,
+    skirtingHeight: 100,
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // KIDS
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: 'study_unit',
+    name: 'Kids Study Unit',
+    group: 'Study',
+    type: 'STUDY_UNIT',
+    category: 'FURNITURE',
+    tags: ['kids', 'study', 'desk'],
+    roomTypes: ['Kids'],
+    brand: 'HomeTown',
+    sku: 'HT-KS-1000',
+    defaultVariantId: 'kstudy_1000',
+    variants: [
+      { id: 'kstudy_1000', label: '1000W x 550D x 1500H', width: 1000, depth: 550, height: 1500, price: 14500, unit: 'unit', drawerCount: 2 },
+    ],
+    hasHandle: true,
+  },
+  {
+    id: 'shoe_rack',
+    name: 'Shoe Rack',
+    group: 'Storage',
+    type: 'SHOE_RACK',
+    category: 'FURNITURE',
+    tags: ['foyer', 'storage', 'shoes'],
+    roomTypes: ['Living'],
+    brand: 'HomeTown',
+    sku: 'HT-SR-900',
+    defaultVariantId: 'sr_900',
+    variants: [
+      { id: 'sr_900', label: '900W x 350D x 1100H', width: 900, depth: 350, height: 1100, price: 9500, unit: 'unit', shutterCount: 2 },
+    ],
+    hasHandle: true,
+    skirtingHeight: 50,
   },
 ];
 

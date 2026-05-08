@@ -1,17 +1,18 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useStore, CatalogCategory, Tool } from '../../store/useStore';
-import { 
-  DoorOpen, 
-  Square, 
-  Grid2X2, 
+import {
+  DoorOpen,
+  Square,
+  Grid2X2,
   Box,
   Palette,
   LayoutTemplate,
   Search,
-  Filter
+  Filter,
+  X,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { furnitureCatalog, materialCatalog } from '../../data/catalog';
+import { furnitureCatalog, materialCatalog, RoomType } from '../../data/catalog';
 
 interface CatalogItem {
   id: string;
@@ -21,16 +22,30 @@ interface CatalogItem {
   category: CatalogCategory;
 }
 
+const ROOM_FILTERS: { id: 'All' | RoomType; label: string }[] = [
+  { id: 'All', label: 'All' },
+  { id: 'Kitchen', label: 'Kitchen' },
+  { id: 'Bedroom', label: 'Bedroom' },
+  { id: 'Living', label: 'Living' },
+  { id: 'Dining', label: 'Dining' },
+  { id: 'Bathroom', label: 'Bathroom' },
+  { id: 'Office', label: 'Office' },
+  { id: 'Kids', label: 'Kids' },
+];
+
 export const CatalogSidebar: React.FC = () => {
-  const { 
-    catalogOpen, 
-    activeCategory, 
-    setActiveCategory, 
-    activeTool, 
-    setActiveTool, 
+  const {
+    catalogOpen,
+    activeCategory,
+    setActiveCategory,
+    activeTool,
+    setActiveTool,
     setActiveFinish,
-    setSelectedCatalogItem
+    setSelectedCatalogItem,
   } = useStore();
+
+  const [search, setSearch] = useState('');
+  const [roomFilter, setRoomFilter] = useState<'All' | RoomType>('All');
 
   const categories: { id: CatalogCategory; icon: any; label: string }[] = [
     { id: 'ARCHITECTURE', icon: LayoutTemplate, label: 'Arc' },
@@ -44,23 +59,76 @@ export const CatalogSidebar: React.FC = () => {
     { id: 'window', name: 'Window', icon: Grid2X2, tool: 'WINDOW', category: 'ARCHITECTURE' },
   ];
 
-  const items: CatalogItem[] = [
-    ...architectureItems,
-    ...furnitureCatalog.map((item) => ({ id: item.id, name: item.name, icon: Box, tool: 'FURNITURE' as Tool, category: 'FURNITURE' as CatalogCategory })),
-    ...materialCatalog.map((item) => ({ id: item.id, name: item.name, icon: Palette, tool: 'APPLY_FINISH' as Tool, category: 'FINISHES' as CatalogCategory })),
-  ];
+  const items: CatalogItem[] = useMemo(
+    () => [
+      ...architectureItems,
+      ...furnitureCatalog.map((item) => ({
+        id: item.id,
+        name: item.name,
+        icon: Box,
+        tool: 'FURNITURE' as Tool,
+        category: 'FURNITURE' as CatalogCategory,
+      })),
+      ...materialCatalog.map((item) => ({
+        id: item.id,
+        name: item.name,
+        icon: Palette,
+        tool: 'APPLY_FINISH' as Tool,
+        category: 'FINISHES' as CatalogCategory,
+      })),
+    ],
+    [],
+  );
 
-  const groupedItems = items
-    .filter((item) => item.category === activeCategory)
-    .reduce<Record<string, CatalogItem[]>>((groups, item) => {
-      const group = activeCategory === 'FURNITURE'
-        ? furnitureCatalog.find((catalogItem) => catalogItem.id === item.id)?.group || 'Furniture'
-        : activeCategory === 'FINISHES'
-          ? materialCatalog.find((material) => material.id === item.id)?.group || 'Finishes'
+  const filteredAndGrouped = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    const inCategory = items.filter((item) => item.category === activeCategory);
+
+    const matches = inCategory.filter((item) => {
+      // Search filter — searches name + brand + sku for furniture; name + brand for materials
+      if (needle) {
+        let haystack = item.name.toLowerCase();
+        if (item.category === 'FURNITURE') {
+          const f = furnitureCatalog.find((c) => c.id === item.id);
+          if (f) {
+            haystack += ` ${f.brand ?? ''} ${f.sku ?? ''} ${(f.tags ?? []).join(' ')} ${f.group}`.toLowerCase();
+          }
+        } else if (item.category === 'FINISHES') {
+          const m = materialCatalog.find((c) => c.id === item.id);
+          if (m) {
+            haystack += ` ${m.brand ?? ''} ${m.sku ?? ''} ${(m.tags ?? []).join(' ')} ${m.group}`.toLowerCase();
+          }
+        }
+        if (!haystack.includes(needle)) return false;
+      }
+
+      // Room filter (furniture only)
+      if (item.category === 'FURNITURE' && roomFilter !== 'All') {
+        const f = furnitureCatalog.find((c) => c.id === item.id);
+        const rooms = f?.roomTypes;
+        if (rooms && !rooms.includes(roomFilter)) return false;
+      }
+
+      return true;
+    });
+
+    const grouped = matches.reduce<Record<string, CatalogItem[]>>((acc, item) => {
+      const group =
+        activeCategory === 'FURNITURE'
+          ? furnitureCatalog.find((c) => c.id === item.id)?.group || 'Furniture'
+          : activeCategory === 'FINISHES'
+          ? materialCatalog.find((m) => m.id === item.id)?.group || 'Finishes'
           : 'Architecture';
-      groups[group] = [...(groups[group] || []), item];
-      return groups;
+      acc[group] = [...(acc[group] || []), item];
+      return acc;
     }, {});
+    return grouped;
+  }, [items, activeCategory, search, roomFilter]);
+
+  const totalMatches = Object.values(filteredAndGrouped).reduce(
+    (sum, arr) => sum + arr.length,
+    0,
+  );
 
   if (!catalogOpen) return null;
 
@@ -70,11 +138,21 @@ export const CatalogSidebar: React.FC = () => {
       <div className="p-4 bg-white border-b border-slate-200 shadow-sm">
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-          <input 
-            type="text" 
-            placeholder="Search catalog..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+          <input
+            type="text"
+            placeholder="Search catalog (name, brand, SKU, tag…)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-8 py-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none transition-all"
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-slate-200 text-slate-400"
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1">
@@ -83,10 +161,10 @@ export const CatalogSidebar: React.FC = () => {
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
               className={cn(
-                "flex-1 flex flex-col items-center py-2 rounded-lg transition-all border",
-                activeCategory === cat.id 
-                  ? "bg-blue-50 border-blue-200 text-blue-600 shadow-sm" 
-                  : "border-transparent text-slate-500 hover:bg-slate-100 hover:border-slate-200"
+                'flex-1 flex flex-col items-center py-2 rounded-lg transition-all border',
+                activeCategory === cat.id
+                  ? 'bg-blue-50 border-blue-200 text-blue-600 shadow-sm'
+                  : 'border-transparent text-slate-500 hover:bg-slate-100 hover:border-slate-200',
               )}
             >
               <cat.icon size={18} />
@@ -96,60 +174,119 @@ export const CatalogSidebar: React.FC = () => {
         </div>
       </div>
 
+      {/* Room filter pills (furniture only) */}
+      {activeCategory === 'FURNITURE' && (
+        <div className="px-3 py-2 bg-white border-b border-slate-100 overflow-x-auto no-scrollbar">
+          <div className="flex gap-1.5">
+            {ROOM_FILTERS.map((room) => (
+              <button
+                key={room.id}
+                onClick={() => setRoomFilter(room.id)}
+                className={cn(
+                  'whitespace-nowrap px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all',
+                  roomFilter === room.id
+                    ? 'bg-slate-900 border-slate-900 text-white'
+                    : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300',
+                )}
+              >
+                {room.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Grid Content */}
       <div className="flex-1 overflow-y-auto p-3">
         <div className="flex items-center justify-between mb-3 px-1">
-          <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{activeCategory} Items</h2>
-          <button className="p-1 hover:bg-slate-200 rounded text-slate-400 trasition-all">
+          <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            {activeCategory} Items · {totalMatches}
+          </h2>
+          <button className="p-1 hover:bg-slate-200 rounded text-slate-400 transition-all">
             <Filter size={12} />
           </button>
         </div>
 
-        <div className="space-y-4">
-          {Object.entries(groupedItems).map(([group, groupItems]) => (
-            <div key={group}>
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">{group}</h3>
-              <div className="grid grid-cols-2 gap-3">
-              {groupItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if (item.tool) setActiveTool(item.tool);
-                  setSelectedCatalogItem(item.id);
-                  if (item.category === 'FINISHES') {
-                    setActiveFinish(item.id);
-                  }
-                }}
-                className={cn(
-                  "flex flex-col items-center justify-center aspect-square rounded-xl bg-white border-2 border-transparent shadow-sm hover:shadow-md transition-all group",
-                  activeTool === item.tool && "border-blue-500 ring-2 ring-blue-100"
-                )}
-              >
-                <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform mb-2">
-                  <item.icon size={24} className="text-slate-600" />
+        {totalMatches === 0 ? (
+          <div className="py-12 text-center">
+            <Search size={28} className="mx-auto text-slate-300 mb-2" />
+            <p className="text-xs font-bold text-slate-500">No matches.</p>
+            <p className="text-[10px] text-slate-400 mt-1">Try clearing search or room filter.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(filteredAndGrouped).map(([group, groupItems]) => (
+              <div key={group}>
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                  {group}
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {groupItems.map((item) => {
+                    const f =
+                      item.category === 'FURNITURE'
+                        ? furnitureCatalog.find((c) => c.id === item.id)
+                        : undefined;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          if (item.tool) setActiveTool(item.tool);
+                          setSelectedCatalogItem(item.id);
+                          if (item.category === 'FINISHES') {
+                            setActiveFinish(item.id);
+                          }
+                        }}
+                        className={cn(
+                          'flex flex-col items-center justify-center aspect-square rounded-xl bg-white border-2 border-transparent shadow-sm hover:shadow-md transition-all group p-2',
+                          activeTool === item.tool && 'border-blue-500 ring-2 ring-blue-100',
+                        )}
+                      >
+                        <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform mb-2">
+                          <item.icon size={24} className="text-slate-600" />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-700 line-clamp-1 w-full text-center">
+                          {item.name}
+                        </span>
+                        {f?.brand && (
+                          <span className="text-[8px] font-bold text-slate-400 mt-0.5 line-clamp-1">
+                            {f.brand}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-                <span className="text-[11px] font-medium text-slate-700">{item.name}</span>
-              </button>
-              ))}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Footer Branding */}
       <div className="p-3 bg-white border-t border-slate-100 flex items-center justify-between">
-        <span className="text-[10px] font-bold text-slate-300 tracking-widest uppercase">Global Prefs & Settings</span>
+        <span className="text-[10px] font-bold text-slate-300 tracking-widest uppercase">
+          Global Prefs & Settings
+        </span>
         <div className="flex gap-1.5 grayscale opacity-50">
-           <GripHorizontal size={14} className="text-slate-400" />
+          <GripHorizontal size={14} className="text-slate-400" />
         </div>
       </div>
     </div>
   );
 };
 
-const GripHorizontal = ({ size, className }: { size: number, className: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+const GripHorizontal = ({ size, className }: { size: number; className: string }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
     <circle cx="12" cy="9" r="1" />
     <circle cx="19" cy="9" r="1" />
     <circle cx="5" cy="9" r="1" />

@@ -35,7 +35,28 @@ export interface WallOpening {
 export interface Furniture {
   id: string;
   roomId: string;
-  type: 'CABINET_BASE' | 'CABINET_WALL' | 'CABINET_TALL' | 'TABLE' | 'CHAIR' | 'WARDROBE' | 'SINK_UNIT';
+  type:
+    | 'CABINET_BASE'
+    | 'CABINET_WALL'
+    | 'CABINET_TALL'
+    | 'TABLE'
+    | 'CHAIR'
+    | 'WARDROBE'
+    | 'SINK_UNIT'
+    | 'BED'
+    | 'SOFA'
+    | 'DESK'
+    | 'BOOKSHELF'
+    | 'TV_UNIT'
+    | 'NIGHTSTAND'
+    | 'DRESSER'
+    | 'VANITY'
+    | 'COFFEE_TABLE'
+    | 'DINING_TABLE'
+    | 'SHOE_RACK'
+    | 'STUDY_UNIT'
+    | 'OFFICE_CHAIR'
+    | 'MIRROR';
   position: Point;
   rotation: number;
   width: number;
