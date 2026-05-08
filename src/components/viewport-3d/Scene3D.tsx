@@ -25,7 +25,14 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
 
   return (
     <div className="w-full h-full bg-slate-50 relative">
-      <Canvas shadows>
+      <Canvas
+        shadows
+        gl={{
+          antialias: true,
+          logarithmicDepthBuffer: true,
+          powerPreference: 'high-performance',
+        }}
+      >
         {config.orthographic ? (
           <OrthographicCamera key={cameraPreset} makeDefault position={config.position} zoom={0.08} near={1} far={100000} />
         ) : (
@@ -40,7 +47,10 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
           angle={0.15} 
           penumbra={1} 
           intensity={2} 
-          castShadow 
+          castShadow
+          shadow-mapSize={[2048, 2048]}
+          shadow-bias={-0.00025}
+          shadow-normalBias={0.05}
         />
         <directionalLight position={[-5000, 10000, 5000]} intensity={0.5} />
 
@@ -57,17 +67,24 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         />
 
         {/* Floor Level */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]} receiveShadow>
           <planeGeometry args={[100000, 100000]} />
-          <meshStandardMaterial color="#f1f5f9" roughness={1} />
+          <meshStandardMaterial
+            color="#f1f5f9"
+            roughness={1}
+            polygonOffset
+            polygonOffsetFactor={1}
+            polygonOffsetUnits={1}
+          />
         </mesh>
 
         {/* Walls */}
         <group>
-          {walls.map((wall) => (
+          {walls.map((wall, wallIndex) => (
             <Wall3D 
               key={wall.id} 
-              wall={wall} 
+              wall={wall}
+              depthBiasIndex={wallIndex}
               openings={openings.filter(o => o.wallId === wall.id)}
               isSelected={selection?.id === wall.id}
               onClick={() => {

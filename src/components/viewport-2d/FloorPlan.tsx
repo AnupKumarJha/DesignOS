@@ -122,6 +122,11 @@ export const FloorPlan: React.FC = () => {
     };
   };
 
+  const getSnappedWallPoint = (point: Point) => {
+    const allPoints = walls.flatMap(w => [w.start, w.end]);
+    return findClosestPoint(point, allPoints) || snapToGrid(point);
+  };
+
   const handleMouseDown = (e: any) => {
     // Cancel drawing on right click
     if (e.evt.button === 2) {
@@ -141,23 +146,10 @@ export const FloorPlan: React.FC = () => {
     }
 
     if (activeTool === 'WALL') {
-      const allPoints = walls.flatMap(w => [w.start, w.end]);
-      const snapped = findClosestPoint(pos, allPoints) || snapToGrid(pos);
-      
-      if (!draftStart) {
-        setDraftStart(snapped);
-      } else {
-        const wallEnd = snapToAngle(draftStart, snapped);
-        const newWall: Wall = {
-          id: crypto.randomUUID(),
-          start: draftStart,
-          end: wallEnd,
-          thickness: DEFAULT_WALL_THICKNESS,
-          height: DEFAULT_WALL_HEIGHT,
-        };
-        addWall(newWall);
-        setDraftStart(wallEnd);
-      }
+      const snapped = getSnappedWallPoint(pos);
+      setDraftStart(snapped);
+      setCurrentMousePos(snapped);
+      return;
     } else if (activeTool === 'FURNITURE') {
       const stage = e.target.getStage();
       const pos = getRelativePointerPosition(stage);
@@ -199,12 +191,40 @@ export const FloorPlan: React.FC = () => {
     }
   };
 
+  const handleMouseUp = (e: any) => {
+    if (activeTool !== 'WALL' || !draftStart) return;
+
+    const stage = e.target.getStage();
+    const pos = getRelativePointerPosition(stage);
+    const snapped = getSnappedWallPoint(pos);
+    const wallEnd = snapToAngle(draftStart, snapped);
+
+    if (getDistance(draftStart, wallEnd) < 50) {
+      setDraftStart(null);
+      setCurrentMousePos(null);
+      return;
+    }
+
+    const newWall: Wall = {
+      id: crypto.randomUUID(),
+      start: draftStart,
+      end: wallEnd,
+      thickness: DEFAULT_WALL_THICKNESS,
+      height: DEFAULT_WALL_HEIGHT,
+    };
+
+    addWall(newWall);
+    setSelection({ id: newWall.id, type: 'wall' });
+    setDraftStart(null);
+    setCurrentMousePos(null);
+  };
+
   const handleMouseMove = (e: any) => {
     const stage = e.target.getStage();
     const pos = getRelativePointerPosition(stage);
     
     if (draftStart) {
-      const snapped = snapToAngle(draftStart, pos);
+      const snapped = snapToAngle(draftStart, getSnappedWallPoint(pos));
       setCurrentMousePos(snapped);
     } else {
       setCurrentMousePos(pos);
@@ -271,6 +291,7 @@ export const FloorPlan: React.FC = () => {
         draggable={activeTool === 'SELECT'}
         onDragEnd={handleStageDrag}
         onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
         onWheel={handleWheel}
         onContextMenu={(e) => e.evt.preventDefault()}
@@ -401,7 +422,7 @@ export const FloorPlan: React.FC = () => {
       </Stage>
       
       <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur px-3 py-2 rounded-md text-xs text-slate-500 border border-slate-200">
-        ESC to cancel • Right click to finish wall chain • Scroll to zoom • Drag to pan • Drag selected wall endpoints/openings
+        Wall tool: click-drag-release to sketch • ESC to cancel • Scroll to zoom • Drag to pan • Drag selected wall endpoints/openings
       </div>
     </div>
   );
