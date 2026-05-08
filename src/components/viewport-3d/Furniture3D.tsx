@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import * as THREE from 'three';
 import { Furniture } from '../../store/useStore';
 import { COLORS } from '../../lib/constants';
+import { getMaterial } from '../../data/catalog';
+import { getMaterialTexture, getFinishProps } from '../../lib/materialTexture';
 
 interface Furniture3DProps {
   item: Furniture;
@@ -11,10 +14,25 @@ interface Furniture3DProps {
 export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, onClick }) => {
   const isWallCabinet = item.type === 'CABINET_WALL';
   const hasSkirting = (item.skirtingHeight || 0) > 0;
-  
+
   // Base height offset
   const yBase = isWallCabinet ? 1500 : 0;
   const yPos = yBase + (item.height / 2) + (item.skirtingHeight || 0);
+
+  // Material → texture map + PBR finish
+  const material = getMaterial(item.materialId);
+  const finish = getFinishProps(material?.finishType);
+  const texture = useMemo(() => {
+    const t = getMaterialTexture(material);
+    if (!t) return null;
+    const cloned = t.clone();
+    cloned.wrapS = THREE.RepeatWrapping;
+    cloned.wrapT = THREE.RepeatWrapping;
+    cloned.needsUpdate = true;
+    // Tile every ~600mm so cabinet shutters show pattern detail
+    cloned.repeat.set(Math.max(1, item.width / 600), Math.max(1, item.height / 600));
+    return cloned;
+  }, [material?.id, item.width, item.height]);
 
   const shutters = [];
   if (item.shutterCount && item.shutterCount > 0 && !item.drawerCount) {
@@ -40,10 +58,11 @@ export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, onCl
       {/* Carcass */}
       <mesh castShadow receiveShadow>
         <boxGeometry args={[item.width, item.height, item.depth]} />
-        <meshStandardMaterial 
-          color={item.color || '#ffffff'} 
-          metalness={0.05}
-          roughness={0.7}
+        <meshStandardMaterial
+          color={item.color || '#ffffff'}
+          map={texture}
+          metalness={finish.metalness}
+          roughness={finish.roughness}
         />
       </mesh>
 
@@ -60,7 +79,12 @@ export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, onCl
         <group key={idx} position={[s.x, 0, item.depth / 2 + 2]}>
           <mesh>
             <boxGeometry args={[s.width, item.height - 4, 18]} />
-            <meshStandardMaterial color={item.color || '#f1f5f9'} roughness={0.4} />
+            <meshStandardMaterial
+              color={item.color || '#f1f5f9'}
+              map={texture}
+              metalness={finish.metalness}
+              roughness={finish.roughness}
+            />
           </mesh>
           {/* Handle Placeholder */}
           {item.hasHandle && (
@@ -79,7 +103,12 @@ export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, onCl
           <group key={`drawer-${idx}`} position={[0, item.height / 2 - drawerHeight / 2 - idx * drawerHeight, item.depth / 2 + 2]}>
             <mesh>
               <boxGeometry args={[item.width - 4, drawerHeight - 4, 18]} />
-              <meshStandardMaterial color={item.color || '#f1f5f9'} roughness={0.45} />
+              <meshStandardMaterial
+                color={item.color || '#f1f5f9'}
+                map={texture}
+                metalness={finish.metalness}
+                roughness={finish.roughness}
+              />
             </mesh>
             {item.hasHandle && (
               <mesh position={[0, 0, 10]}>

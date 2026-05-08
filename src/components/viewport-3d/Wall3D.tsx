@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { Wall, WallOpening } from '../../store/useStore';
 import { COLORS } from '../../lib/constants';
 import { getDistance } from '../../lib/math';
+import { getMaterial } from '../../data/catalog';
+import { getMaterialTexture, getFinishProps } from '../../lib/materialTexture';
 
 interface Wall3DProps {
   wall: Wall;
@@ -18,6 +20,22 @@ export const Wall3D: React.FC<Wall3DProps> = ({ wall, openings, isSelected, dept
   const polyUnits = 1 + (depthBiasIndex % 14) * 0.35;
   const length = getDistance(wall.start, wall.end);
   const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
+
+  // Material → texture map + PBR-like finish props
+  const material = getMaterial(wall.materialId);
+  const finish = getFinishProps(material?.finishType);
+  const texture = useMemo(() => {
+    const t = getMaterialTexture(material);
+    if (!t) return null;
+    // Tile texture roughly every 1m along both axes so wood grain etc.
+    // doesn't get stretched on long walls.
+    const cloned = t.clone();
+    cloned.wrapS = THREE.RepeatWrapping;
+    cloned.wrapT = THREE.RepeatWrapping;
+    cloned.needsUpdate = true;
+    cloned.repeat.set(Math.max(1, length / 1000), Math.max(1, wall.height / 1000));
+    return cloned;
+  }, [material?.id, length, wall.height]);
 
   const geometry = useMemo(() => {
     const shape = new THREE.Shape();
@@ -53,16 +71,20 @@ export const Wall3D: React.FC<Wall3DProps> = ({ wall, openings, isSelected, dept
 
   return (
     <group position={[wall.start.x, 0, -wall.start.y]} rotation={[0, -angle, 0]}>
-      <mesh 
+      <mesh
         geometry={geometry}
         onClick={(e) => {
           e.stopPropagation();
           onClick?.();
         }}
       >
-        <meshStandardMaterial 
-          color={isSelected ? COLORS.SELECTION : wall.color || COLORS.WALL_3D}
-          roughness={0.7}
+        <meshStandardMaterial
+          color={wall.color || COLORS.WALL_3D}
+          map={texture}
+          emissive={isSelected ? new THREE.Color(COLORS.SELECTION) : new THREE.Color(0x000000)}
+          emissiveIntensity={isSelected ? 0.22 : 0}
+          roughness={finish.roughness}
+          metalness={finish.metalness}
           polygonOffset
           polygonOffsetFactor={polyFactor}
           polygonOffsetUnits={polyUnits}
