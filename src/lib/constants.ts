@@ -9,7 +9,7 @@ export const DEFAULT_WALL_HEIGHT = 2700; // mm
 export const DEFAULT_WALL_THICKNESS = 150; // mm
 
 export const GRID_SIZE = 100; // mm (Minor grid)
-export const SNAP_SENSITIVITY = 20; // mm
+export const SNAP_SENSITIVITY = 150; // mm — generous endpoint snap so walls join cleanly
 
 export const COLORS = {
   WALL_2D: '#333333',

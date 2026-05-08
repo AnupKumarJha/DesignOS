@@ -36,6 +36,7 @@ export const FloorPlan: React.FC = () => {
   const [offset, setOffset] = useState({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const [draftStart, setDraftStart] = useState<Point | null>(null);
   const [currentMousePos, setCurrentMousePos] = useState<Point | null>(null);
+  const [snapTarget, setSnapTarget] = useState<{ point: Point; isEndpoint: boolean } | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<any>(null);
@@ -125,6 +126,15 @@ export const FloorPlan: React.FC = () => {
   const getSnappedWallPoint = (point: Point) => {
     const allPoints = walls.flatMap(w => [w.start, w.end]);
     return findClosestPoint(point, allPoints) || snapToGrid(point);
+  };
+
+  // Same as above but also reports whether we snapped to an existing endpoint.
+  // Used to render a visual snap indicator while the user is drawing.
+  const getSnapInfo = (point: Point): { point: Point; isEndpoint: boolean } => {
+    const allPoints = walls.flatMap((w) => [w.start, w.end]);
+    const endpoint = findClosestPoint(point, allPoints);
+    if (endpoint) return { point: endpoint, isEndpoint: true };
+    return { point: snapToGrid(point), isEndpoint: false };
   };
 
   const handleMouseDown = (e: any) => {
@@ -217,12 +227,20 @@ export const FloorPlan: React.FC = () => {
     setSelection({ id: newWall.id, type: 'wall' });
     setDraftStart(null);
     setCurrentMousePos(null);
+    setSnapTarget(null);
   };
 
   const handleMouseMove = (e: any) => {
     const stage = e.target.getStage();
     const pos = getRelativePointerPosition(stage);
-    
+
+    if (activeTool === 'WALL') {
+      const info = getSnapInfo(pos);
+      setSnapTarget(info);
+    } else {
+      setSnapTarget(null);
+    }
+
     if (draftStart) {
       const snapped = snapToAngle(draftStart, getSnappedWallPoint(pos));
       setCurrentMousePos(snapped);
@@ -410,19 +428,38 @@ export const FloorPlan: React.FC = () => {
           )}
 
           {draftStart && currentMousePos && (
-            <Line
-              points={[draftStart.x, draftStart.y, currentMousePos.x, currentMousePos.y]}
-              stroke="#94a3b8"
-              strokeWidth={DEFAULT_WALL_THICKNESS}
-              opacity={0.5}
-              dash={[10, 10]}
-            />
+            <>
+              <Line
+                points={[draftStart.x, draftStart.y, currentMousePos.x, currentMousePos.y]}
+                stroke="#94a3b8"
+                strokeWidth={DEFAULT_WALL_THICKNESS}
+                opacity={0.5}
+                dash={[10, 10]}
+              />
+              <Text
+                x={(draftStart.x + currentMousePos.x) / 2}
+                y={(draftStart.y + currentMousePos.y) / 2 - 80}
+                text={`${Math.round(getDistance(draftStart, currentMousePos))} mm`}
+                fontSize={120}
+                fontStyle="bold"
+                fill="#1e293b"
+                offsetX={140}
+              />
+            </>
+          )}
+
+          {/* Snap indicator: cyan ring when about to snap to an existing endpoint */}
+          {activeTool === 'WALL' && snapTarget && snapTarget.isEndpoint && (
+            <Group x={snapTarget.point.x} y={snapTarget.point.y}>
+              <Circle radius={120} stroke="#06b6d4" strokeWidth={8} opacity={0.9} />
+              <Circle radius={40} fill="#06b6d4" opacity={0.85} />
+            </Group>
           )}
         </Layer>
       </Stage>
       
       <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur px-3 py-2 rounded-md text-xs text-slate-500 border border-slate-200">
-        Wall tool: click-drag-release to sketch • ESC to cancel • Scroll to zoom • Drag to pan • Drag selected wall endpoints/openings
+        Wall tool: click-drag-release to sketch • <span className="text-cyan-600 font-bold">Cyan ring</span> = will snap to existing endpoint • ESC to cancel • Scroll to zoom • Drag to pan
       </div>
     </div>
   );

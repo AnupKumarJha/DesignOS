@@ -6,6 +6,7 @@ import { TopBar } from './components/ui/TopBar';
 import { CatalogSidebar } from './components/ui/CatalogSidebar';
 import { PropertiesSidebar } from './components/ui/PropertiesSidebar';
 import { ProjectHub } from './components/ui/ProjectHub';
+import { BottomMaterialDrawer } from './components/ui/BottomMaterialDrawer';
 import { useKeyboard } from './hooks/useKeyboard';
 import { cn } from './lib/utils';
 
@@ -66,6 +67,8 @@ export default function App() {
 
         <PropertiesSidebar />
       </main>
+
+      <BottomMaterialDrawer />
 
       {/* Floating Status Bar */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] pointer-events-none flex items-center gap-2">

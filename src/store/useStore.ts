@@ -103,7 +103,9 @@ interface AppState {
   activeCategory: CatalogCategory;
   activeFinish: string | null;
   selectedCatalogItem: string | null;
-  
+  materialDrawerOpen: boolean;
+  materialDrawerCategory: string;
+
   // Actions
   setWorkspaceMode: (mode: WorkspaceMode) => void;
   updateProject: (updates: Partial<ProjectMeta>) => void;
@@ -130,6 +132,8 @@ interface AppState {
   setActiveCategory: (cat: CatalogCategory) => void;
   setActiveFinish: (finish: string | null) => void;
   setSelectedCatalogItem: (id: string | null) => void;
+  setMaterialDrawerOpen: (open: boolean) => void;
+  setMaterialDrawerCategory: (category: string) => void;
   clearAll: () => void;
 }
 
@@ -167,6 +171,8 @@ export const useStore = create<AppState>()(
       activeCategory: 'ARCHITECTURE',
       activeFinish: null,
       selectedCatalogItem: null,
+      materialDrawerOpen: false,
+      materialDrawerCategory: 'Solid Paints',
 
       setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
 
@@ -264,6 +270,8 @@ export const useStore = create<AppState>()(
 
       setActiveFinish: (finish) => set({ activeFinish: finish }),
       setSelectedCatalogItem: (id) => set({ selectedCatalogItem: id }),
+      setMaterialDrawerOpen: (open) => set({ materialDrawerOpen: open }),
+      setMaterialDrawerCategory: (category) => set({ materialDrawerCategory: category }),
       clearAll: () => set({
         walls: [],
         furniture: [],

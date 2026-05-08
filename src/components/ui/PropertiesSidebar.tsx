@@ -1,18 +1,27 @@
 import React from 'react';
 import { useStore, Wall, Furniture } from '../../store/useStore';
-import { X, Settings2, Trash2, ChevronDown, Search, Filter, Layers, Ruler, Palette } from 'lucide-react';
+import { X, Settings2, Trash2, ChevronDown, Layers, Ruler, Palette, Sparkles, ChevronRight, Move, RotateCw } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { furnitureCatalog, getCatalogItem, materialCatalog } from '../../data/catalog';
+import { furnitureCatalog, getCatalogItem, getMaterial } from '../../data/catalog';
 import { getDistance } from '../../lib/math';
+import { getPatternStyle } from '../../lib/materialPattern';
 
 export const PropertiesSidebar: React.FC = () => {
-  const { selection, walls, furniture, openings, updateWall, updateFurniture, updateOpening, removeWall, removeFurniture, removeOpening, setSelection } = useStore();
-
-  const materialCategories = React.useMemo(
-    () => Array.from(new Set(materialCatalog.map((material) => material.group))),
-    []
-  );
-  const [activeMaterialCategory, setActiveMaterialCategory] = React.useState<string>(materialCategories[0]);
+  const {
+    selection,
+    walls,
+    furniture,
+    openings,
+    updateWall,
+    updateFurniture,
+    updateOpening,
+    removeWall,
+    removeFurniture,
+    removeOpening,
+    setSelection,
+    setMaterialDrawerOpen,
+    setMaterialDrawerCategory,
+  } = useStore();
 
   if (!selection) return null;
 
@@ -28,8 +37,17 @@ export const PropertiesSidebar: React.FC = () => {
 
   if (!item) return null;
 
-  const filteredMaterials = materialCatalog.filter((m) => m.group === activeMaterialCategory);
   const wallLength = isWall ? getDistance((item as Wall).start, (item as Wall).end) : 0;
+  const currentMaterialId =
+    (isWall || isFurniture) ? (item as Wall | Furniture).materialId : undefined;
+  const currentMaterial = getMaterial(currentMaterialId);
+
+  // Parent wall lookup for openings (door/window) — needed for offset-in-mm
+  const parentWall =
+    isOpening ? walls.find((w) => w.id === (item as any).wallId) : undefined;
+  const parentWallLength = parentWall
+    ? getDistance(parentWall.start, parentWall.end)
+    : 0;
 
   return (
     <div className="w-[320px] h-full bg-white border-l border-slate-200 flex flex-col z-40 transition-all shadow-2xl overflow-hidden">
@@ -163,24 +181,175 @@ export const PropertiesSidebar: React.FC = () => {
           )}
 
           {isOpening && (
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Offset (%)</label>
-                <Input
-                  type="number"
-                  value={Math.round((item as any).offset * 100)}
-                  onChange={(v) => updateOpening(item.id, { offset: Math.max(0, Math.min(1, v / 100)) })}
+            <label className="flex items-center justify-between mt-4 text-[11px] text-slate-600 font-medium">
+              Flip Swing
+              <input
+                type="checkbox"
+                checked={(item as any).flip || false}
+                onChange={(e) => updateOpening(item.id, { flip: e.target.checked })}
+                className="accent-blue-600 h-3.5 w-3.5"
+              />
+            </label>
+          )}
+        </Section>
+
+        {/* Accordion: Position & Placement */}
+        <Section title="Position & Placement" icon={Move}>
+          {isWall && (
+            <div className="space-y-4">
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  Start Point
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <LabeledInput
+                    label="X (mm)"
+                    value={Math.round((item as Wall).start.x)}
+                    onChange={(v) => updateWall(item.id, { start: { ...(item as Wall).start, x: v } })}
+                  />
+                  <LabeledInput
+                    label="Y (mm)"
+                    value={Math.round((item as Wall).start.y)}
+                    onChange={(v) => updateWall(item.id, { start: { ...(item as Wall).start, y: v } })}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  End Point
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <LabeledInput
+                    label="X (mm)"
+                    value={Math.round((item as Wall).end.x)}
+                    onChange={(v) => updateWall(item.id, { end: { ...(item as Wall).end, x: v } })}
+                  />
+                  <LabeledInput
+                    label="Y (mm)"
+                    value={Math.round((item as Wall).end.y)}
+                    onChange={(v) => updateWall(item.id, { end: { ...(item as Wall).end, y: v } })}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  Translate Wall
+                </div>
+                <NudgePad
+                  onNudge={(dx, dy) => {
+                    const wall = item as Wall;
+                    updateWall(wall.id, {
+                      start: { x: wall.start.x + dx, y: wall.start.y + dy },
+                      end: { x: wall.end.x + dx, y: wall.end.y + dy },
+                    });
+                  }}
                 />
               </div>
-              <label className="flex items-center justify-between mt-6 text-[11px] text-slate-600 font-medium">
-                Flip Swing
-                <input
-                  type="checkbox"
-                  checked={(item as any).flip || false}
-                  onChange={(e) => updateOpening(item.id, { flip: e.target.checked })}
-                  className="accent-blue-600 h-3.5 w-3.5"
+            </div>
+          )}
+
+          {isOpening && (
+            <div className="space-y-3">
+              {parentWall && (
+                <>
+                  <LabeledInput
+                    label={`Distance from wall start (mm) · max ${Math.round(parentWallLength)}`}
+                    value={Math.round((item as any).offset * parentWallLength)}
+                    onChange={(v) =>
+                      updateOpening(item.id, {
+                        offset: parentWallLength
+                          ? Math.max(0, Math.min(1, v / parentWallLength))
+                          : 0,
+                      })
+                    }
+                  />
+                  <LabeledInput
+                    label="Bottom Height from Floor (mm)"
+                    value={Math.round((item as any).bottomHeight ?? 0)}
+                    onChange={(v) => updateOpening(item.id, { bottomHeight: Math.max(0, v) })}
+                  />
+                  <div className="text-[10px] text-slate-400 font-medium">
+                    Anchored to wall · {Math.round((item as any).offset * 100)}% along its length
+                  </div>
+                </>
+              )}
+              {!parentWall && (
+                <div className="text-[11px] text-slate-400">
+                  Parent wall not found — opening may be orphaned.
+                </div>
+              )}
+            </div>
+          )}
+
+          {isFurniture && (
+            <div className="space-y-4">
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  Position
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <LabeledInput
+                    label="X (mm)"
+                    value={Math.round((item as Furniture).position.x)}
+                    onChange={(v) =>
+                      updateFurniture(item.id, {
+                        position: { ...(item as Furniture).position, x: v },
+                      })
+                    }
+                  />
+                  <LabeledInput
+                    label="Y (mm)"
+                    value={Math.round((item as Furniture).position.y)}
+                    onChange={(v) =>
+                      updateFurniture(item.id, {
+                        position: { ...(item as Furniture).position, y: v },
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <RotateCw size={10} />
+                  Rotation
+                </div>
+                <div className="flex items-center gap-2">
+                  <LabeledInput
+                    label="Angle (°)"
+                    value={Math.round((item as Furniture).rotation)}
+                    onChange={(v) => updateFurniture(item.id, { rotation: v })}
+                  />
+                  <div className="flex gap-1">
+                    {[0, 90, 180, 270].map((deg) => (
+                      <button
+                        key={deg}
+                        onClick={() => updateFurniture(item.id, { rotation: deg })}
+                        className={cn(
+                          'px-2 py-1.5 rounded-md text-[10px] font-bold border',
+                          Math.round((item as Furniture).rotation) === deg
+                            ? 'bg-blue-600 border-blue-600 text-white'
+                            : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300',
+                        )}
+                      >
+                        {deg}°
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  Nudge
+                </div>
+                <NudgePad
+                  onNudge={(dx, dy) => {
+                    const f = item as Furniture;
+                    updateFurniture(f.id, {
+                      position: { x: f.position.x + dx, y: f.position.y + dy },
+                    });
+                  }}
                 />
-              </label>
+              </div>
             </div>
           )}
         </Section>
@@ -235,76 +404,70 @@ export const PropertiesSidebar: React.FC = () => {
            </div>
         </Section>
 
-        {/* Accordion: Finish & Material (Matches Screenshot) */}
+        {/* Finish & Material — preview + open drawer */}
         {!isOpening && (
           <div className="mt-2 bg-white border-y border-slate-200">
             <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Palette size={14} className="text-blue-600" />
-                <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Finish Material</h3>
+                <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
+                  Finish Material
+                </h3>
               </div>
-              <button
-                onClick={() => {
-                  if (isWall) updateWall(item.id, { color: undefined, materialId: undefined });
-                  else if (isFurniture) updateFurniture(item.id, { color: undefined, materialId: undefined });
-                }}
-                className="text-[10px] font-bold text-blue-600 hover:underline"
-              >
-                RESET
-              </button>
+              {currentMaterial && (
+                <button
+                  onClick={() => {
+                    if (isWall) updateWall(item.id, { color: undefined, materialId: undefined });
+                    else if (isFurniture)
+                      updateFurniture(item.id, { color: undefined, materialId: undefined });
+                  }}
+                  className="text-[10px] font-bold text-slate-500 hover:text-blue-600 hover:underline"
+                >
+                  RESET
+                </button>
+              )}
             </div>
 
-            <div className="p-4 bg-slate-50/50">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="relative flex-1">
-                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input placeholder="Search wall texture..." className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-[11px] outline-none" />
+            <div className="p-4 bg-slate-50/50 space-y-3">
+              <div className="flex items-center gap-3 bg-white rounded-2xl border border-slate-200 p-3">
+                <div
+                  className="w-14 h-14 rounded-xl border border-slate-200 shrink-0"
+                  style={
+                    currentMaterial
+                      ? getPatternStyle(currentMaterial)
+                      : { backgroundColor: '#f1f5f9' }
+                  }
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-black text-slate-800 truncate">
+                    {currentMaterial?.name ?? 'No material applied'}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-bold truncate mt-0.5">
+                    {currentMaterial
+                      ? `${currentMaterial.brand ?? currentMaterial.group} · ${currentMaterial.finishType ?? '—'}`
+                      : 'Pick from the material library'}
+                  </div>
+                  {currentMaterial && (
+                    <div className="text-[10px] text-blue-600 font-black mt-0.5">
+                      ₹{currentMaterial.rate}/{currentMaterial.unit}
+                    </div>
+                  )}
                 </div>
-                <button className="p-1.5 bg-white border border-slate-200 rounded-lg text-slate-400">
-                  <Filter size={14} />
-                </button>
               </div>
 
-              <div className="flex gap-2 overflow-x-auto pb-3 mb-2 no-scrollbar">
-                {materialCategories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveMaterialCategory(cat)}
-                    className={cn(
-                      "whitespace-nowrap px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all",
-                      cat === activeMaterialCategory ? "bg-blue-600 border-blue-600 text-white shadow-sm" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                    )}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {filteredMaterials.map((c) => {
-                  const currentMaterial = (isWall || isFurniture) ? (item as Wall | Furniture).materialId : undefined;
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => {
-                        if (isWall) updateWall(item.id, { color: c.color, materialId: c.id });
-                        else if (isFurniture) updateFurniture(item.id, { color: c.color, materialId: c.id });
-                      }}
-                      className={cn(
-                        "flex flex-col p-2 bg-white rounded-xl border-2 transition-all group shadow-sm hover:shadow-md",
-                        currentMaterial === c.id ? "border-blue-600 bg-blue-50/30" : "border-slate-100"
-                      )}
-                    >
-                      <div
-                        className="w-full aspect-video rounded-lg shadow-inner mb-2"
-                        style={{ backgroundColor: c.color }}
-                      />
-                      <span className="text-[10px] font-bold text-slate-600 text-left line-clamp-1 truncate w-full">{c.name}</span>
-                      <span className="text-[9px] text-slate-400 font-medium">{c.group} · ₹{c.rate}/{c.unit}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <button
+                onClick={() => {
+                  if (currentMaterial) setMaterialDrawerCategory(currentMaterial.group);
+                  setMaterialDrawerOpen(true);
+                }}
+                className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-[11px] font-black hover:bg-blue-700 shadow-md shadow-blue-100 transition-all"
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkles size={13} />
+                  Browse Material Library
+                </span>
+                <ChevronRight size={14} />
+              </button>
             </div>
           </div>
         )}
@@ -344,11 +507,62 @@ const Section: React.FC<{ title: string; children: React.ReactNode; icon: any }>
 );
 
 const Input: React.FC<{ value: number; onChange: (v: number) => void; type?: string }> = ({ value, onChange, type = "number" }) => (
-  <input 
-    type={type} 
+  <input
+    type={type}
     value={value}
     onChange={(e) => onChange(parseInt(e.target.value) || 0)}
     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-1 focus:ring-blue-600 focus:bg-white transition-all shadow-inner"
   />
 );
-;
+
+const LabeledInput: React.FC<{ label: string; value: number; onChange: (v: number) => void }> = ({
+  label,
+  value,
+  onChange,
+}) => (
+  <div className="space-y-1">
+    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+      {label}
+    </label>
+    <Input value={value} onChange={onChange} />
+  </div>
+);
+
+const NudgePad: React.FC<{ onNudge: (dx: number, dy: number) => void }> = ({ onNudge }) => {
+  const [step, setStep] = React.useState(10);
+  const btn =
+    'flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 text-[11px] font-bold transition-all';
+  return (
+    <div className="flex items-center gap-3">
+      <div className="grid grid-cols-3 gap-1.5 w-fit">
+        <span />
+        <button onClick={() => onNudge(0, -step)} className={btn} title={`Up ${step}mm`}>↑</button>
+        <span />
+        <button onClick={() => onNudge(-step, 0)} className={btn} title={`Left ${step}mm`}>←</button>
+        <span className="flex items-center justify-center text-[9px] text-slate-400 font-black">
+          {step}mm
+        </span>
+        <button onClick={() => onNudge(step, 0)} className={btn} title={`Right ${step}mm`}>→</button>
+        <span />
+        <button onClick={() => onNudge(0, step)} className={btn} title={`Down ${step}mm`}>↓</button>
+        <span />
+      </div>
+      <div className="flex flex-col gap-1">
+        {[10, 50, 100].map((s) => (
+          <button
+            key={s}
+            onClick={() => setStep(s)}
+            className={cn(
+              'px-2 py-1 rounded-md text-[9px] font-bold border',
+              step === s
+                ? 'bg-blue-600 border-blue-600 text-white'
+                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300',
+            )}
+          >
+            {s}mm
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};

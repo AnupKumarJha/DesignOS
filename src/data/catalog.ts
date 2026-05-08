@@ -25,6 +25,8 @@ export interface FurnitureCatalogItem {
   skirtingHeight?: number;
 }
 
+export type FinishType = 'Matte' | 'Glossy' | 'Textured' | 'Natural' | 'Polished' | 'Reflective';
+
 export interface MaterialItem {
   id: string;
   name: string;
@@ -32,6 +34,12 @@ export interface MaterialItem {
   color: string;
   rate: number;
   unit: 'sqft' | 'sqm' | 'unit';
+  brand?: string;
+  sku?: string;
+  finishType?: FinishType;
+  imageUrl?: string;
+  tags?: string[];
+  pattern?: 'solid' | 'wood' | 'marble' | 'fabric' | 'brick' | 'tile' | 'concrete' | 'metal' | 'glass';
 }
 
 const cabinetVariants = (prefix: string, depth: number, height: number, price: number): CatalogVariant[] =>
@@ -168,68 +176,172 @@ export const furnitureCatalog: FurnitureCatalogItem[] = [
 ];
 
 export const materialCatalog: MaterialItem[] = [
-  // Solid Paints — Asian Paints / Berger style swatches
-  { id: 'paint_ivory_white', name: 'Ivory White', group: 'Solid Paints', color: '#f7f3e8', rate: 35, unit: 'sqft' },
-  { id: 'paint_silk_grey', name: 'Silk Grey', group: 'Solid Paints', color: '#cbd5e1', rate: 45, unit: 'sqft' },
-  { id: 'paint_beige_cream', name: 'Beige Cream', group: 'Solid Paints', color: '#e8dcc4', rate: 40, unit: 'sqft' },
-  { id: 'paint_sage_green', name: 'Sage Green', group: 'Solid Paints', color: '#9caf88', rate: 50, unit: 'sqft' },
-  { id: 'paint_opal_green', name: 'Opal Green', group: 'Solid Paints', color: '#134e4a', rate: 50, unit: 'sqft' },
-  { id: 'paint_dusty_rose', name: 'Dusty Rose', group: 'Solid Paints', color: '#c98b8b', rate: 50, unit: 'sqft' },
-  { id: 'paint_terracotta', name: 'Terracotta', group: 'Solid Paints', color: '#b85c38', rate: 55, unit: 'sqft' },
-  { id: 'paint_orange_brown', name: 'Orange Brown', group: 'Solid Paints', color: '#9a3412', rate: 55, unit: 'sqft' },
-  { id: 'paint_mustard_ochre', name: 'Mustard Ochre', group: 'Solid Paints', color: '#c89b3c', rate: 55, unit: 'sqft' },
-  { id: 'paint_navy_indigo', name: 'Navy Indigo', group: 'Solid Paints', color: '#1e3a5f', rate: 60, unit: 'sqft' },
-  { id: 'paint_matte_black', name: 'Matte Black', group: 'Solid Paints', color: '#1e293b', rate: 65, unit: 'sqft' },
+  // ──────────────────────────────────────────────────────────────────
+  // SOLID PAINTS — Asian Paints, Berger, Dulux
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'paint_ivory_white', name: 'Ivory White', group: 'Solid Paints', color: '#f7f3e8', rate: 35, unit: 'sqft', brand: 'Asian Paints', sku: 'AP-7853', finishType: 'Matte', pattern: 'solid', tags: ['neutral', 'warm', 'ceiling'] },
+  { id: 'paint_pure_white', name: 'Pure White', group: 'Solid Paints', color: '#fafaf7', rate: 35, unit: 'sqft', brand: 'Asian Paints', sku: 'AP-7901', finishType: 'Matte', pattern: 'solid', tags: ['neutral', 'cool'] },
+  { id: 'paint_silk_grey', name: 'Silk Grey', group: 'Solid Paints', color: '#cbd5e1', rate: 45, unit: 'sqft', brand: 'Berger', sku: 'BG-2210', finishType: 'Matte', pattern: 'solid', tags: ['neutral', 'modern'] },
+  { id: 'paint_beige_cream', name: 'Beige Cream', group: 'Solid Paints', color: '#e8dcc4', rate: 40, unit: 'sqft', brand: 'Asian Paints', sku: 'AP-8104', finishType: 'Matte', pattern: 'solid', tags: ['warm', 'neutral'] },
+  { id: 'paint_sage_green', name: 'Sage Green', group: 'Solid Paints', color: '#9caf88', rate: 50, unit: 'sqft', brand: 'Dulux', sku: 'DX-3402', finishType: 'Matte', pattern: 'solid', tags: ['green', 'calming'] },
+  { id: 'paint_opal_green', name: 'Opal Green', group: 'Solid Paints', color: '#134e4a', rate: 50, unit: 'sqft', brand: 'Asian Paints', sku: 'AP-9211', finishType: 'Matte', pattern: 'solid', tags: ['green', 'dark'] },
+  { id: 'paint_dusty_rose', name: 'Dusty Rose', group: 'Solid Paints', color: '#c98b8b', rate: 50, unit: 'sqft', brand: 'Berger', sku: 'BG-4501', finishType: 'Matte', pattern: 'solid', tags: ['pink', 'warm'] },
+  { id: 'paint_terracotta', name: 'Terracotta', group: 'Solid Paints', color: '#b85c38', rate: 55, unit: 'sqft', brand: 'Asian Paints', sku: 'AP-6622', finishType: 'Matte', pattern: 'solid', tags: ['earthy', 'warm'] },
+  { id: 'paint_orange_brown', name: 'Orange Brown', group: 'Solid Paints', color: '#9a3412', rate: 55, unit: 'sqft', brand: 'Nerolac', sku: 'NL-3103', finishType: 'Matte', pattern: 'solid', tags: ['warm', 'bold'] },
+  { id: 'paint_mustard_ochre', name: 'Mustard Ochre', group: 'Solid Paints', color: '#c89b3c', rate: 55, unit: 'sqft', brand: 'Dulux', sku: 'DX-5501', finishType: 'Matte', pattern: 'solid', tags: ['yellow', 'warm'] },
+  { id: 'paint_navy_indigo', name: 'Navy Indigo', group: 'Solid Paints', color: '#1e3a5f', rate: 60, unit: 'sqft', brand: 'Asian Paints', sku: 'AP-1140', finishType: 'Matte', pattern: 'solid', tags: ['blue', 'dark'] },
+  { id: 'paint_matte_black', name: 'Matte Black', group: 'Solid Paints', color: '#1e293b', rate: 65, unit: 'sqft', brand: 'Berger', sku: 'BG-0001', finishType: 'Matte', pattern: 'solid', tags: ['dark', 'modern'] },
 
-  // Laminate — Greenlam / Merino tier
-  { id: 'laminate_white_gloss', name: 'White Gloss', group: 'Laminate', color: '#f8fafc', rate: 85, unit: 'sqft' },
-  { id: 'laminate_ash_grey', name: 'Ash Grey', group: 'Laminate', color: '#9ca3af', rate: 90, unit: 'sqft' },
-  { id: 'laminate_concrete', name: 'Concrete Stone', group: 'Laminate', color: '#a8a29e', rate: 95, unit: 'sqft' },
-  { id: 'laminate_oak', name: 'Oak Laminate', group: 'Laminate', color: '#d4a373', rate: 95, unit: 'sqft' },
-  { id: 'laminate_maple', name: 'Maple Wood', group: 'Laminate', color: '#e8c598', rate: 105, unit: 'sqft' },
-  { id: 'laminate_teak', name: 'Burma Teak', group: 'Laminate', color: '#a0673a', rate: 120, unit: 'sqft' },
-  { id: 'laminate_walnut', name: 'American Walnut', group: 'Laminate', color: '#6b4423', rate: 130, unit: 'sqft' },
-  { id: 'laminate_matte_black', name: 'Matte Black', group: 'Laminate', color: '#0f172a', rate: 140, unit: 'sqft' },
+  // ──────────────────────────────────────────────────────────────────
+  // TEXTURE PAINT — Royale Play, Berger Textura
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'texture_royale_sand', name: 'Royale Sand', group: 'Texture Paint', color: '#d4c5a8', rate: 110, unit: 'sqft', brand: 'Asian Paints Royale Play', sku: 'RP-S101', finishType: 'Textured', pattern: 'concrete', tags: ['warm', 'rough'] },
+  { id: 'texture_royale_silk', name: 'Royale Silk', group: 'Texture Paint', color: '#e6dcc8', rate: 130, unit: 'sqft', brand: 'Asian Paints Royale Play', sku: 'RP-K202', finishType: 'Glossy', pattern: 'solid', tags: ['warm', 'sheen'] },
+  { id: 'texture_textura_stucco', name: 'Stucco Beige', group: 'Texture Paint', color: '#c8b89a', rate: 145, unit: 'sqft', brand: 'Berger Textura', sku: 'TX-S301', finishType: 'Textured', pattern: 'concrete', tags: ['earthy'] },
+  { id: 'texture_textura_grit', name: 'Grit Stone', group: 'Texture Paint', color: '#9ca3af', rate: 145, unit: 'sqft', brand: 'Berger Textura', sku: 'TX-G402', finishType: 'Textured', pattern: 'concrete', tags: ['neutral', 'rough'] },
+  { id: 'texture_lime_white', name: 'Lime Wash White', group: 'Texture Paint', color: '#f1ece0', rate: 95, unit: 'sqft', brand: 'Pidilite', sku: 'PD-LW01', finishType: 'Textured', pattern: 'concrete', tags: ['white', 'rustic'] },
+  { id: 'texture_metallica', name: 'Metallica Bronze', group: 'Texture Paint', color: '#8b6f47', rate: 195, unit: 'sqft', brand: 'Asian Paints Royale Play', sku: 'RP-M501', finishType: 'Reflective', pattern: 'metal', tags: ['metallic', 'bold'] },
 
-  // Veneer — premium natural wood
-  { id: 'veneer_oak', name: 'Natural Oak Veneer', group: 'Veneer', color: '#c8a878', rate: 160, unit: 'sqft' },
-  { id: 'veneer_teak', name: 'Burma Teak Veneer', group: 'Veneer', color: '#9c6a3d', rate: 195, unit: 'sqft' },
-  { id: 'veneer_walnut', name: 'Walnut Veneer', group: 'Veneer', color: '#7c4a2d', rate: 220, unit: 'sqft' },
-  { id: 'veneer_mahogany', name: 'Mahogany Veneer', group: 'Veneer', color: '#5d2e1f', rate: 240, unit: 'sqft' },
-  { id: 'veneer_rosewood', name: 'Rosewood Veneer', group: 'Veneer', color: '#4a2418', rate: 280, unit: 'sqft' },
-  { id: 'veneer_ebony', name: 'Smoked Ebony', group: 'Veneer', color: '#2a1810', rate: 320, unit: 'sqft' },
+  // ──────────────────────────────────────────────────────────────────
+  // LAMINATE — Greenlam, Merino, Century, AICA
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'laminate_white_gloss', name: 'White Gloss', group: 'Laminate', color: '#f8fafc', rate: 85, unit: 'sqft', brand: 'Greenlam', sku: 'GL-1100', finishType: 'Glossy', pattern: 'solid', tags: ['white', 'clean'] },
+  { id: 'laminate_ash_grey', name: 'Ash Grey', group: 'Laminate', color: '#9ca3af', rate: 90, unit: 'sqft', brand: 'Greenlam', sku: 'GL-2204', finishType: 'Matte', pattern: 'solid', tags: ['grey', 'neutral'] },
+  { id: 'laminate_concrete', name: 'Concrete Stone', group: 'Laminate', color: '#a8a29e', rate: 95, unit: 'sqft', brand: 'Merino', sku: 'MR-CS01', finishType: 'Textured', pattern: 'concrete', tags: ['industrial'] },
+  { id: 'laminate_oak', name: 'Natural Oak', group: 'Laminate', color: '#d4a373', rate: 95, unit: 'sqft', brand: 'Greenlam', sku: 'GL-W3301', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'light'] },
+  { id: 'laminate_maple', name: 'Maple Wood', group: 'Laminate', color: '#e8c598', rate: 105, unit: 'sqft', brand: 'Century', sku: 'CL-M412', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'light'] },
+  { id: 'laminate_teak', name: 'Burma Teak', group: 'Laminate', color: '#a0673a', rate: 120, unit: 'sqft', brand: 'Greenlam', sku: 'GL-W7702', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'warm'] },
+  { id: 'laminate_walnut', name: 'American Walnut', group: 'Laminate', color: '#6b4423', rate: 130, unit: 'sqft', brand: 'Merino', sku: 'MR-W5503', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'dark'] },
+  { id: 'laminate_rosewood', name: 'Indian Rosewood', group: 'Laminate', color: '#4a2418', rate: 145, unit: 'sqft', brand: 'AICA', sku: 'AC-R8801', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'premium'] },
+  { id: 'laminate_matte_black', name: 'Matte Black', group: 'Laminate', color: '#0f172a', rate: 140, unit: 'sqft', brand: 'Greenlam', sku: 'GL-9999', finishType: 'Matte', pattern: 'solid', tags: ['black', 'modern'] },
+  { id: 'laminate_marble_white', name: 'Carrara Marble', group: 'Laminate', color: '#eaeaea', rate: 165, unit: 'sqft', brand: 'Merino', sku: 'MR-CM01', finishType: 'Polished', pattern: 'marble', tags: ['marble', 'luxe'] },
 
-  // Countertop — granite / marble / quartz
-  { id: 'counter_granite_black', name: 'Black Galaxy Granite', group: 'Countertop', color: '#1c1917', rate: 280, unit: 'sqft' },
-  { id: 'counter_granite_kashmir', name: 'Kashmir White Granite', group: 'Countertop', color: '#e7e5e4', rate: 320, unit: 'sqft' },
-  { id: 'counter_quartz_grey', name: 'Quartz Stone Grey', group: 'Countertop', color: '#9ca3af', rate: 380, unit: 'sqft' },
-  { id: 'counter_quartz_white', name: 'Carrara Quartz', group: 'Countertop', color: '#f1f5f9', rate: 420, unit: 'sqft' },
-  { id: 'counter_marble', name: 'Indian White Marble', group: 'Countertop', color: '#e5e7eb', rate: 450, unit: 'sqft' },
-  { id: 'counter_statuario', name: 'Statuario Marble', group: 'Countertop', color: '#fafafa', rate: 650, unit: 'sqft' },
+  // ──────────────────────────────────────────────────────────────────
+  // VENEER — premium natural wood
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'veneer_oak', name: 'Natural Oak Veneer', group: 'Veneer', color: '#c8a878', rate: 160, unit: 'sqft', brand: 'Greenlam Decowood', sku: 'GD-OAK', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'light'] },
+  { id: 'veneer_teak', name: 'Burma Teak Veneer', group: 'Veneer', color: '#9c6a3d', rate: 195, unit: 'sqft', brand: 'Century Sainik', sku: 'CS-TK01', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'classic'] },
+  { id: 'veneer_walnut', name: 'Walnut Veneer', group: 'Veneer', color: '#7c4a2d', rate: 220, unit: 'sqft', brand: 'Archidply', sku: 'AD-WL02', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'rich'] },
+  { id: 'veneer_mahogany', name: 'Mahogany Veneer', group: 'Veneer', color: '#5d2e1f', rate: 240, unit: 'sqft', brand: 'Marino', sku: 'MO-MH01', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'red'] },
+  { id: 'veneer_rosewood', name: 'Rosewood Veneer', group: 'Veneer', color: '#4a2418', rate: 280, unit: 'sqft', brand: 'Greenlam Decowood', sku: 'GD-RW', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'dark'] },
+  { id: 'veneer_ebony', name: 'Smoked Ebony', group: 'Veneer', color: '#2a1810', rate: 320, unit: 'sqft', brand: 'Archidply', sku: 'AD-EB01', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'premium'] },
+  { id: 'veneer_zebrano', name: 'Zebrano Striped', group: 'Veneer', color: '#8c6a3a', rate: 295, unit: 'sqft', brand: 'Greenlam Decowood', sku: 'GD-ZB', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'striped'] },
 
-  // Glass
-  { id: 'glass_clear', name: 'Clear Glass', group: 'Glass', color: '#dbeafe', rate: 280, unit: 'sqft' },
-  { id: 'glass_frosted', name: 'Frosted Glass', group: 'Glass', color: '#e2e8f0', rate: 320, unit: 'sqft' },
-  { id: 'glass_smoke', name: 'Smoke Grey Glass', group: 'Glass', color: '#475569', rate: 380, unit: 'sqft' },
-  { id: 'glass_bronze', name: 'Bronze Tinted Glass', group: 'Glass', color: '#78350f', rate: 420, unit: 'sqft' },
-  { id: 'glass_mirror', name: 'Reflective Mirror', group: 'Glass', color: '#cbd5e1', rate: 480, unit: 'sqft' },
+  // ──────────────────────────────────────────────────────────────────
+  // WALLPAPER — Excel, Marshalls, Asian Paints
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'wallpaper_linen', name: 'Linen Texture', group: 'Wallpaper', color: '#ebe6d7', rate: 100, unit: 'sqft', brand: 'Excel', sku: 'EX-LT01', finishType: 'Textured', pattern: 'fabric', tags: ['neutral', 'subtle'] },
+  { id: 'wallpaper_concrete', name: 'Concrete Texture', group: 'Wallpaper', color: '#a8a29e', rate: 110, unit: 'sqft', brand: 'Marshalls', sku: 'MS-CT02', finishType: 'Textured', pattern: 'concrete', tags: ['industrial'] },
+  { id: 'wallpaper_brick', name: 'Exposed Brick', group: 'Wallpaper', color: '#9b4f3a', rate: 130, unit: 'sqft', brand: 'Excel', sku: 'EX-BR03', finishType: 'Textured', pattern: 'brick', tags: ['rustic', 'red'] },
+  { id: 'wallpaper_geometric', name: 'Geometric Pattern', group: 'Wallpaper', color: '#475569', rate: 160, unit: 'sqft', brand: 'Asian Paints Wallpaper', sku: 'APW-GP04', finishType: 'Matte', pattern: 'fabric', tags: ['modern', 'pattern'] },
+  { id: 'wallpaper_floral', name: 'Floral Bloom', group: 'Wallpaper', color: '#d4a5a5', rate: 180, unit: 'sqft', brand: 'Marshalls', sku: 'MS-FL05', finishType: 'Matte', pattern: 'fabric', tags: ['romantic', 'pattern'] },
+  { id: 'wallpaper_damask', name: 'Damask Heritage', group: 'Wallpaper', color: '#3f3f46', rate: 220, unit: 'sqft', brand: 'Excel', sku: 'EX-DM06', finishType: 'Matte', pattern: 'fabric', tags: ['classic', 'dark'] },
+  { id: 'wallpaper_stripe', name: 'Vertical Stripe', group: 'Wallpaper', color: '#a3b18a', rate: 150, unit: 'sqft', brand: 'Asian Paints Wallpaper', sku: 'APW-ST07', finishType: 'Matte', pattern: 'fabric', tags: ['classic', 'pattern'] },
+  { id: 'wallpaper_jute', name: 'Jute Weave', group: 'Wallpaper', color: '#c8a978', rate: 170, unit: 'sqft', brand: 'Marshalls', sku: 'MS-JT08', finishType: 'Textured', pattern: 'fabric', tags: ['natural', 'rustic'] },
 
-  // Flooring — tiles, wood, stone
-  { id: 'tile_warm', name: 'Warm Beige Tile', group: 'Flooring', color: '#e6c99d', rate: 120, unit: 'sqft' },
-  { id: 'tile_vitrified', name: 'Vitrified Glossy Tile', group: 'Flooring', color: '#f1f5f9', rate: 140, unit: 'sqft' },
-  { id: 'tile_grey_stone', name: 'Grey Stone Tile', group: 'Flooring', color: '#71717a', rate: 165, unit: 'sqft' },
-  { id: 'tile_terrazzo', name: 'Terrazzo', group: 'Flooring', color: '#d6d3d1', rate: 195, unit: 'sqft' },
-  { id: 'tile_wooden_plank', name: 'Wooden Plank Tile', group: 'Flooring', color: '#a47148', rate: 220, unit: 'sqft' },
-  { id: 'tile_italian_marble', name: 'Italian Marble Tile', group: 'Flooring', color: '#f5f5f4', rate: 320, unit: 'sqft' },
-  { id: 'tile_travertine', name: 'Travertine Stone', group: 'Flooring', color: '#c8b18b', rate: 380, unit: 'sqft' },
+  // ──────────────────────────────────────────────────────────────────
+  // GLASS — Saint-Gobain, AIS, Modiguard
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'glass_clear', name: 'Clear Glass 5mm', group: 'Glass', color: '#dbeafe', rate: 280, unit: 'sqft', brand: 'Saint-Gobain', sku: 'SG-CL05', finishType: 'Glossy', pattern: 'glass', tags: ['transparent'] },
+  { id: 'glass_frosted', name: 'Frosted Glass', group: 'Glass', color: '#e2e8f0', rate: 320, unit: 'sqft', brand: 'AIS', sku: 'AIS-FR01', finishType: 'Matte', pattern: 'glass', tags: ['privacy'] },
+  { id: 'glass_smoke', name: 'Smoke Grey Glass', group: 'Glass', color: '#475569', rate: 380, unit: 'sqft', brand: 'Modiguard', sku: 'MG-SM02', finishType: 'Glossy', pattern: 'glass', tags: ['dark'] },
+  { id: 'glass_bronze', name: 'Bronze Tinted', group: 'Glass', color: '#78350f', rate: 420, unit: 'sqft', brand: 'Saint-Gobain', sku: 'SG-BR03', finishType: 'Glossy', pattern: 'glass', tags: ['warm'] },
+  { id: 'glass_mirror', name: 'Reflective Mirror', group: 'Glass', color: '#cbd5e1', rate: 480, unit: 'sqft', brand: 'AIS', sku: 'AIS-MR04', finishType: 'Reflective', pattern: 'glass', tags: ['mirror'] },
+  { id: 'glass_lacquered_white', name: 'Lacquered White', group: 'Glass', color: '#f5f5f4', rate: 520, unit: 'sqft', brand: 'Saint-Gobain Planilaque', sku: 'SG-LW05', finishType: 'Glossy', pattern: 'glass', tags: ['white', 'premium'] },
 
-  // Wallpaper
-  { id: 'wallpaper_linen', name: 'Linen Texture', group: 'Wallpaper', color: '#ebe6d7', rate: 100, unit: 'sqft' },
-  { id: 'wallpaper_concrete', name: 'Concrete Texture', group: 'Wallpaper', color: '#a8a29e', rate: 110, unit: 'sqft' },
-  { id: 'wallpaper_brick', name: 'Exposed Brick', group: 'Wallpaper', color: '#9b4f3a', rate: 130, unit: 'sqft' },
-  { id: 'wallpaper_geometric', name: 'Geometric Pattern', group: 'Wallpaper', color: '#475569', rate: 160, unit: 'sqft' },
-  { id: 'wallpaper_floral', name: 'Floral Bloom', group: 'Wallpaper', color: '#d4a5a5', rate: 180, unit: 'sqft' },
-  { id: 'wallpaper_damask', name: 'Damask Heritage', group: 'Wallpaper', color: '#3f3f46', rate: 220, unit: 'sqft' },
+  // ──────────────────────────────────────────────────────────────────
+  // WALL TILES — Kajaria, Somany, Nitco, Orient Bell
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'walltile_kajaria_white', name: 'Glossy White Subway', group: 'Wall Tiles', color: '#f1f5f9', rate: 95, unit: 'sqft', brand: 'Kajaria', sku: 'KJ-WT001', finishType: 'Glossy', pattern: 'tile', tags: ['white', 'subway'] },
+  { id: 'walltile_kajaria_marble', name: 'Statuario Marble Tile', group: 'Wall Tiles', color: '#fafafa', rate: 165, unit: 'sqft', brand: 'Kajaria', sku: 'KJ-MB002', finishType: 'Polished', pattern: 'marble', tags: ['marble', 'luxe'] },
+  { id: 'walltile_somany_grey', name: 'Travertine Grey', group: 'Wall Tiles', color: '#9ca3af', rate: 125, unit: 'sqft', brand: 'Somany', sku: 'SM-TG003', finishType: 'Textured', pattern: 'marble', tags: ['stone'] },
+  { id: 'walltile_nitco_mosaic', name: 'Mosaic Penny', group: 'Wall Tiles', color: '#c8a978', rate: 195, unit: 'sqft', brand: 'Nitco', sku: 'NT-MS004', finishType: 'Matte', pattern: 'tile', tags: ['mosaic', 'pattern'] },
+  { id: 'walltile_orient_terracotta', name: 'Terracotta Square', group: 'Wall Tiles', color: '#b85c38', rate: 110, unit: 'sqft', brand: 'Orient Bell', sku: 'OB-TC005', finishType: 'Matte', pattern: 'tile', tags: ['warm', 'rustic'] },
+  { id: 'walltile_kajaria_3d', name: '3D Chevron Black', group: 'Wall Tiles', color: '#1e293b', rate: 245, unit: 'sqft', brand: 'Kajaria Eternity', sku: 'KJ-3D006', finishType: 'Textured', pattern: 'tile', tags: ['black', 'pattern', '3d'] },
+
+  // ──────────────────────────────────────────────────────────────────
+  // WALL TEXTURE — decorative finishes
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'walltex_lime_plaster', name: 'Lime Plaster', group: 'Wall Texture', color: '#e8e0cc', rate: 120, unit: 'sqft', brand: 'Pidilite', sku: 'PD-LP01', finishType: 'Textured', pattern: 'concrete', tags: ['rustic', 'natural'] },
+  { id: 'walltex_microcement', name: 'Microcement Grey', group: 'Wall Texture', color: '#a8a29e', rate: 195, unit: 'sqft', brand: 'Topcret', sku: 'TC-MC02', finishType: 'Textured', pattern: 'concrete', tags: ['industrial', 'modern'] },
+  { id: 'walltex_venetian', name: 'Venetian Plaster', group: 'Wall Texture', color: '#d6c5a8', rate: 245, unit: 'sqft', brand: 'San Marco', sku: 'SM-VP03', finishType: 'Polished', pattern: 'marble', tags: ['luxe', 'classic'] },
+  { id: 'walltex_tadelakt', name: 'Tadelakt Earth', group: 'Wall Texture', color: '#9a7b4f', rate: 280, unit: 'sqft', brand: 'San Marco', sku: 'SM-TD04', finishType: 'Polished', pattern: 'concrete', tags: ['earthy', 'artisan'] },
+  { id: 'walltex_stone_cladding', name: 'Stone Cladding', group: 'Wall Texture', color: '#71717a', rate: 195, unit: 'sqft', brand: 'Stonex', sku: 'SX-SC05', finishType: 'Natural', pattern: 'concrete', tags: ['stone', 'rustic'] },
+
+  // ──────────────────────────────────────────────────────────────────
+  // METAL FINISHES — Hettich, Hafele
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'metal_brushed_steel', name: 'Brushed Steel', group: 'Metal', color: '#a3a3a3', rate: 180, unit: 'sqft', brand: 'Hettich', sku: 'HT-BS01', finishType: 'Reflective', pattern: 'metal', tags: ['silver', 'modern'] },
+  { id: 'metal_brushed_brass', name: 'Brushed Brass', group: 'Metal', color: '#b08d57', rate: 220, unit: 'sqft', brand: 'Hafele', sku: 'HF-BB02', finishType: 'Reflective', pattern: 'metal', tags: ['gold', 'warm'] },
+  { id: 'metal_copper', name: 'Antique Copper', group: 'Metal', color: '#a35f3a', rate: 240, unit: 'sqft', brand: 'Hafele', sku: 'HF-AC03', finishType: 'Reflective', pattern: 'metal', tags: ['copper', 'vintage'] },
+  { id: 'metal_black_oxide', name: 'Black Oxide', group: 'Metal', color: '#1c1917', rate: 165, unit: 'sqft', brand: 'Hettich', sku: 'HT-BO04', finishType: 'Matte', pattern: 'metal', tags: ['black', 'industrial'] },
+  { id: 'metal_chrome', name: 'Polished Chrome', group: 'Metal', color: '#d4d4d8', rate: 195, unit: 'sqft', brand: 'Hettich', sku: 'HT-PC05', finishType: 'Reflective', pattern: 'metal', tags: ['silver', 'shiny'] },
+
+  // ──────────────────────────────────────────────────────────────────
+  // PU FINISHES — high-end paint finish
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'pu_glossy_white', name: 'PU Gloss White', group: 'PU Finishes', color: '#fafafa', rate: 220, unit: 'sqft', brand: 'Sirca', sku: 'SC-PG01', finishType: 'Glossy', pattern: 'solid', tags: ['white', 'premium'] },
+  { id: 'pu_matte_black', name: 'PU Matte Black', group: 'PU Finishes', color: '#0f172a', rate: 240, unit: 'sqft', brand: 'Sirca', sku: 'SC-PM02', finishType: 'Matte', pattern: 'solid', tags: ['black', 'premium'] },
+  { id: 'pu_pearl_grey', name: 'PU Pearl Grey', group: 'PU Finishes', color: '#cbd5e1', rate: 230, unit: 'sqft', brand: 'Asian Paints PU', sku: 'AP-PG03', finishType: 'Glossy', pattern: 'solid', tags: ['grey', 'sheen'] },
+  { id: 'pu_champagne', name: 'PU Champagne Gold', group: 'PU Finishes', color: '#c4a878', rate: 280, unit: 'sqft', brand: 'Sirca', sku: 'SC-CG04', finishType: 'Reflective', pattern: 'metal', tags: ['gold', 'luxe'] },
+
+  // ──────────────────────────────────────────────────────────────────
+  // ACRYLIC — Greenlam, Merino acrylic shutters
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'acrylic_high_gloss_white', name: 'High Gloss White', group: 'Acrylic', color: '#fefefe', rate: 295, unit: 'sqft', brand: 'Greenlam Acrylic', sku: 'GA-HG01', finishType: 'Glossy', pattern: 'solid', tags: ['white', 'shiny'] },
+  { id: 'acrylic_high_gloss_red', name: 'High Gloss Red', group: 'Acrylic', color: '#dc2626', rate: 320, unit: 'sqft', brand: 'Greenlam Acrylic', sku: 'GA-HR02', finishType: 'Glossy', pattern: 'solid', tags: ['red', 'bold'] },
+  { id: 'acrylic_metallic_silver', name: 'Metallic Silver', group: 'Acrylic', color: '#a3a3a3', rate: 340, unit: 'sqft', brand: 'Merino Acrylic', sku: 'MA-MS03', finishType: 'Reflective', pattern: 'metal', tags: ['silver', 'modern'] },
+  { id: 'acrylic_high_gloss_black', name: 'High Gloss Black', group: 'Acrylic', color: '#0f172a', rate: 320, unit: 'sqft', brand: 'Greenlam Acrylic', sku: 'GA-HB04', finishType: 'Glossy', pattern: 'solid', tags: ['black', 'modern'] },
+  { id: 'acrylic_high_gloss_blue', name: 'High Gloss Cobalt', group: 'Acrylic', color: '#1e40af', rate: 320, unit: 'sqft', brand: 'Merino Acrylic', sku: 'MA-HB05', finishType: 'Glossy', pattern: 'solid', tags: ['blue', 'bold'] },
+
+  // ──────────────────────────────────────────────────────────────────
+  // COUNTERTOP — granite, marble, quartz, Caesarstone
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'counter_granite_black', name: 'Black Galaxy Granite', group: 'Countertop', color: '#1c1917', rate: 280, unit: 'sqft', brand: 'Granite India', sku: 'GI-BG01', finishType: 'Polished', pattern: 'marble', tags: ['black', 'durable'] },
+  { id: 'counter_granite_kashmir', name: 'Kashmir White Granite', group: 'Countertop', color: '#e7e5e4', rate: 320, unit: 'sqft', brand: 'Granite India', sku: 'GI-KW02', finishType: 'Polished', pattern: 'marble', tags: ['white', 'classic'] },
+  { id: 'counter_quartz_grey', name: 'Quartz Stone Grey', group: 'Countertop', color: '#9ca3af', rate: 380, unit: 'sqft', brand: 'Quartzforms', sku: 'QF-QG03', finishType: 'Polished', pattern: 'marble', tags: ['grey', 'modern'] },
+  { id: 'counter_quartz_white', name: 'Carrara Quartz', group: 'Countertop', color: '#f1f5f9', rate: 420, unit: 'sqft', brand: 'Caesarstone', sku: 'CS-CQ04', finishType: 'Polished', pattern: 'marble', tags: ['white', 'premium'] },
+  { id: 'counter_marble', name: 'Indian White Marble', group: 'Countertop', color: '#e5e7eb', rate: 450, unit: 'sqft', brand: 'Rajasthan Marbles', sku: 'RM-IW05', finishType: 'Polished', pattern: 'marble', tags: ['white', 'natural'] },
+  { id: 'counter_statuario', name: 'Statuario Marble', group: 'Countertop', color: '#fafafa', rate: 650, unit: 'sqft', brand: 'Italian Imports', sku: 'II-ST06', finishType: 'Polished', pattern: 'marble', tags: ['white', 'luxe'] },
+  { id: 'counter_calacatta', name: 'Calacatta Gold', group: 'Countertop', color: '#f5f0e1', rate: 720, unit: 'sqft', brand: 'Caesarstone', sku: 'CS-CG07', finishType: 'Polished', pattern: 'marble', tags: ['gold', 'luxe'] },
+
+  // ──────────────────────────────────────────────────────────────────
+  // FLOORING — tiles, wood, vinyl, laminate
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'floor_warm_beige', name: 'Warm Beige Tile', group: 'Flooring', color: '#e6c99d', rate: 120, unit: 'sqft', brand: 'Kajaria', sku: 'KJ-FL001', finishType: 'Matte', pattern: 'tile', tags: ['warm', 'neutral'] },
+  { id: 'floor_vitrified', name: 'Vitrified Glossy', group: 'Flooring', color: '#f1f5f9', rate: 140, unit: 'sqft', brand: 'Somany', sku: 'SM-VG002', finishType: 'Glossy', pattern: 'tile', tags: ['white', 'shiny'] },
+  { id: 'floor_grey_stone', name: 'Grey Stone Tile', group: 'Flooring', color: '#71717a', rate: 165, unit: 'sqft', brand: 'Nitco', sku: 'NT-GS003', finishType: 'Matte', pattern: 'tile', tags: ['stone', 'neutral'] },
+  { id: 'floor_terrazzo', name: 'Terrazzo Speckled', group: 'Flooring', color: '#d6d3d1', rate: 195, unit: 'sqft', brand: 'Bharat Floorings', sku: 'BF-TZ004', finishType: 'Polished', pattern: 'tile', tags: ['classic', 'speckled'] },
+  { id: 'floor_wooden_laminate', name: 'Wooden Laminate Plank', group: 'Flooring', color: '#a47148', rate: 220, unit: 'sqft', brand: 'Pergo', sku: 'PG-WL005', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'warm'] },
+  { id: 'floor_engineered_oak', name: 'Engineered Oak', group: 'Flooring', color: '#c8a878', rate: 380, unit: 'sqft', brand: 'Action Tesa', sku: 'AT-EO006', finishType: 'Natural', pattern: 'wood', tags: ['wood', 'premium'] },
+  { id: 'floor_italian_marble', name: 'Italian Marble', group: 'Flooring', color: '#f5f5f4', rate: 320, unit: 'sqft', brand: 'Italian Imports', sku: 'II-IM007', finishType: 'Polished', pattern: 'marble', tags: ['marble', 'luxe'] },
+  { id: 'floor_travertine', name: 'Travertine Stone', group: 'Flooring', color: '#c8b18b', rate: 380, unit: 'sqft', brand: 'Stonex', sku: 'SX-TV008', finishType: 'Natural', pattern: 'marble', tags: ['stone', 'rustic'] },
+  { id: 'floor_vinyl_grey', name: 'Vinyl Plank Grey', group: 'Flooring', color: '#a8a29e', rate: 95, unit: 'sqft', brand: 'Welspun', sku: 'WS-VP009', finishType: 'Matte', pattern: 'wood', tags: ['budget', 'water-resistant'] },
+
+  // ──────────────────────────────────────────────────────────────────
+  // FABRIC — upholstery / drapes (D'Decor, Damro)
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'fabric_velvet_emerald', name: 'Emerald Velvet', group: 'Fabric', color: '#065f46', rate: 380, unit: 'sqft', brand: "D'Decor", sku: 'DD-VE01', finishType: 'Textured', pattern: 'fabric', tags: ['green', 'luxe'] },
+  { id: 'fabric_linen_natural', name: 'Natural Linen', group: 'Fabric', color: '#d6c4a4', rate: 220, unit: 'sqft', brand: "D'Decor", sku: 'DD-LN02', finishType: 'Textured', pattern: 'fabric', tags: ['neutral', 'breathable'] },
+  { id: 'fabric_cotton_charcoal', name: 'Charcoal Cotton', group: 'Fabric', color: '#374151', rate: 195, unit: 'sqft', brand: 'Damro', sku: 'DM-CC03', finishType: 'Matte', pattern: 'fabric', tags: ['dark', 'casual'] },
+  { id: 'fabric_velvet_blush', name: 'Blush Velvet', group: 'Fabric', color: '#e8b4b8', rate: 380, unit: 'sqft', brand: "D'Decor", sku: 'DD-VB04', finishType: 'Textured', pattern: 'fabric', tags: ['pink', 'romantic'] },
+  { id: 'fabric_jute_natural', name: 'Jute Weave', group: 'Fabric', color: '#c8a978', rate: 165, unit: 'sqft', brand: 'Damro', sku: 'DM-JT05', finishType: 'Textured', pattern: 'fabric', tags: ['rustic', 'natural'] },
+
+  // ──────────────────────────────────────────────────────────────────
+  // LEATHER — upholstery
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'leather_tan', name: 'Tan Genuine Leather', group: 'Leather', color: '#a0673a', rate: 580, unit: 'sqft', brand: 'Stanley', sku: 'ST-TL01', finishType: 'Natural', pattern: 'fabric', tags: ['warm', 'classic'] },
+  { id: 'leather_black', name: 'Black Genuine Leather', group: 'Leather', color: '#1c1917', rate: 620, unit: 'sqft', brand: 'Stanley', sku: 'ST-BL02', finishType: 'Natural', pattern: 'fabric', tags: ['black', 'classic'] },
+  { id: 'leather_cognac', name: 'Cognac Italian Leather', group: 'Leather', color: '#8b4513', rate: 850, unit: 'sqft', brand: 'Durian', sku: 'DR-CL03', finishType: 'Polished', pattern: 'fabric', tags: ['warm', 'luxe'] },
+  { id: 'leather_white', name: 'White Bonded Leather', group: 'Leather', color: '#f5f5f4', rate: 380, unit: 'sqft', brand: 'Damro', sku: 'DM-WL04', finishType: 'Glossy', pattern: 'fabric', tags: ['white', 'modern'] },
+
+  // ──────────────────────────────────────────────────────────────────
+  // CARPET
+  // ──────────────────────────────────────────────────────────────────
+  { id: 'carpet_beige', name: 'Plush Beige Carpet', group: 'Carpet', color: '#d6c4a4', rate: 165, unit: 'sqft', brand: 'Welspun', sku: 'WS-PB01', finishType: 'Textured', pattern: 'fabric', tags: ['warm', 'cozy'] },
+  { id: 'carpet_charcoal', name: 'Charcoal Loop Pile', group: 'Carpet', color: '#374151', rate: 195, unit: 'sqft', brand: 'Welspun', sku: 'WS-CL02', finishType: 'Textured', pattern: 'fabric', tags: ['dark', 'modern'] },
+  { id: 'carpet_persian', name: 'Persian Pattern', group: 'Carpet', color: '#7c2d12', rate: 480, unit: 'sqft', brand: 'Obeetee', sku: 'OB-PP03', finishType: 'Textured', pattern: 'fabric', tags: ['classic', 'pattern'] },
+  { id: 'carpet_jute_woven', name: 'Jute Hand-Woven', group: 'Carpet', color: '#c8a978', rate: 220, unit: 'sqft', brand: 'Obeetee', sku: 'OB-JW04', finishType: 'Textured', pattern: 'fabric', tags: ['natural', 'artisan'] },
 ];
 
 export function getCatalogItem(id: string | null | undefined): FurnitureCatalogItem | undefined {
