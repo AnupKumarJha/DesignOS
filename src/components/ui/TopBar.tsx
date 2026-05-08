@@ -125,7 +125,7 @@ export const TopBar: React.FC = () => {
   };
 
   return (
-    <div className="h-12 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-[100] select-none">
+    <div className="h-12 bg-white border-b border-slate-200 flex items-center justify-between gap-2 px-3 z-[100] select-none whitespace-nowrap min-w-0">
       <QuotationModal open={showQuotation} onClose={() => setShowQuotation(false)} />
 
       {showProjectEditor && (
@@ -166,7 +166,7 @@ export const TopBar: React.FC = () => {
       )}
 
       {/* Left: Brand & Breadcrumbs */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 min-w-0 shrink">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.reload()}>
           <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
             <Layout size={14} className="text-white" />
@@ -197,29 +197,29 @@ export const TopBar: React.FC = () => {
 
         <div className="h-4 w-[1px] bg-slate-200" />
 
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium relative" ref={roomMenuRef}>
-          <Home size={14} />
-          <ChevronRight size={12} className="text-slate-300" />
-          <button onClick={() => setWorkspaceMode('DASHBOARD')} className="hover:text-blue-600 cursor-pointer transition-colors px-1">
+        <div className="hidden md:flex items-center gap-1 text-xs text-slate-500 font-medium relative min-w-0" ref={roomMenuRef}>
+          <Home size={14} className="shrink-0" />
+          <ChevronRight size={12} className="text-slate-300 shrink-0" />
+          <button onClick={() => setWorkspaceMode('DASHBOARD')} className="hover:text-blue-600 cursor-pointer transition-colors px-1 truncate max-w-[120px]" title={project.projectName}>
             {workspaceMode === 'DASHBOARD' ? 'Project Hub' : project.projectName}
           </button>
-          <ChevronRight size={12} className="text-slate-300" />
-          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">{currentRoom?.building ?? project.building}</span>
-          <ChevronRight size={12} className="text-slate-300" />
-          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">{currentRoom?.floor ?? project.floor}</span>
-          <ChevronRight size={12} className="text-slate-300" />
+          <ChevronRight size={12} className="text-slate-300 shrink-0 hidden xl:inline-block" />
+          <span className="hidden xl:inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded truncate max-w-[100px]" title={currentRoom?.building ?? project.building}>{currentRoom?.building ?? project.building}</span>
+          <ChevronRight size={12} className="text-slate-300 shrink-0 hidden xl:inline-block" />
+          <span className="hidden xl:inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded truncate max-w-[100px]" title={currentRoom?.floor ?? project.floor}>{currentRoom?.floor ?? project.floor}</span>
+          <ChevronRight size={12} className="text-slate-300 shrink-0" />
           <button
             onClick={() => setRoomMenuOpen((v) => !v)}
             className={cn(
-              'flex items-center gap-1 px-2 py-0.5 rounded transition-all',
+              'flex items-center gap-1 px-2 py-0.5 rounded transition-all shrink-0',
               roomMenuOpen
                 ? 'bg-blue-600 text-white'
                 : 'bg-blue-50 text-blue-700 hover:bg-blue-100',
             )}
             title="Switch room"
           >
-            <span className="font-bold">{currentRoom?.name ?? project.room}</span>
-            <ChevronRight size={10} className={cn('rotate-90 transition-transform', roomMenuOpen && '-rotate-90')} />
+            <span className="font-bold truncate max-w-[100px]">{currentRoom?.name ?? project.room}</span>
+            <ChevronRight size={10} className={cn('rotate-90 transition-transform shrink-0', roomMenuOpen && '-rotate-90')} />
           </button>
 
           {roomMenuOpen && (
@@ -313,7 +313,7 @@ export const TopBar: React.FC = () => {
       />
 
       {/* Center: Menu Items */}
-      <nav className="hidden lg:flex items-center gap-1">
+      <nav className="hidden 2xl:flex items-center gap-1 shrink-0">
         {menuItems.map((item) => (
           <button 
             key={item}
@@ -331,7 +331,7 @@ export const TopBar: React.FC = () => {
       </nav>
 
       {/* Right: Mode Toggles & Global Actions */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 shrink-0">
         <div className="flex items-center p-0.5 bg-slate-100/80 rounded-lg border border-slate-200 shadow-sm">
           <button
             onClick={() => setViewMode('2D')}
@@ -371,7 +371,21 @@ export const TopBar: React.FC = () => {
           </button>
         </div>
 
-        <div className="hidden xl:flex items-center p-0.5 bg-slate-100/80 rounded-lg border border-slate-200 shadow-sm">
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? 'Exit Full Screen (F or Esc)' : 'Enter Full Screen (press F)'}
+          className={cn(
+            'flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-bold border transition-all shadow-sm shrink-0',
+            isFullscreen
+              ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200'
+              : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600',
+          )}
+        >
+          {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+          <span className="hidden xl:inline">{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
+        </button>
+
+        <div className="hidden 2xl:flex items-center p-0.5 bg-slate-100/80 rounded-lg border border-slate-200 shadow-sm shrink-0">
           {[
             ['FREE', 'Free'],
             ['TOP', 'Top'],
@@ -394,7 +408,7 @@ export const TopBar: React.FC = () => {
         <div className="h-4 w-[1px] bg-slate-200" />
 
         {/* Auto-save indicator */}
-        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 px-2 py-1 rounded bg-slate-50 border border-slate-200" title="Local storage status">
+        <div className="hidden lg:flex items-center gap-1.5 text-[10px] font-bold text-slate-400 px-2 py-1 rounded bg-slate-50 border border-slate-200 shrink-0 whitespace-nowrap" title="Local storage status">
           {saveStatus === 'saving' ? (
             <>
               <Loader2 size={11} className="animate-spin text-blue-500" />
@@ -408,12 +422,12 @@ export const TopBar: React.FC = () => {
           ) : (
             <>
               <CloudOff size={11} />
-              <span>Auto-save on</span>
+              <span>Auto-save</span>
             </>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-0.5 shrink-0">
           <button onClick={saveCurrentProject} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Save now">
             <Save size={16} />
           </button>
@@ -434,16 +448,6 @@ export const TopBar: React.FC = () => {
             <Share2 size={16} />
           </button>
           <button
-            onClick={toggleFullscreen}
-            className={cn(
-              'p-1.5 hover:bg-slate-50 rounded transition-all',
-              isFullscreen ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600',
-            )}
-            title={isFullscreen ? 'Exit Full Screen (Esc)' : 'Enter Full Screen'}
-          >
-            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-          </button>
-          <button 
             onClick={() => setShowQuotation(true)}
             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-all" title="Quotation"
           >

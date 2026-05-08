@@ -53,6 +53,16 @@ export const useKeyboard = () => {
         // Manual cleanup might be needed for drafting state in components
       }
 
+      // Toggle fullscreen with F
+      if (e.key.toLowerCase() === 'f' && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      }
+
       // Undo/Redo
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'z') {
