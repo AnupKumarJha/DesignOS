@@ -8,6 +8,12 @@ import { getDistance } from '../../lib/math';
 export const PropertiesSidebar: React.FC = () => {
   const { selection, walls, furniture, openings, updateWall, updateFurniture, updateOpening, removeWall, removeFurniture, removeOpening, setSelection } = useStore();
 
+  const materialCategories = React.useMemo(
+    () => Array.from(new Set(materialCatalog.map((material) => material.group))),
+    []
+  );
+  const [activeMaterialCategory, setActiveMaterialCategory] = React.useState<string>(materialCategories[0]);
+
   if (!selection) return null;
 
   const isWall = selection.type === 'wall';
@@ -22,7 +28,7 @@ export const PropertiesSidebar: React.FC = () => {
 
   if (!item) return null;
 
-  const materialCategories = Array.from(new Set(materialCatalog.map((material) => material.group)));
+  const filteredMaterials = materialCatalog.filter((m) => m.group === activeMaterialCategory);
   const wallLength = isWall ? getDistance((item as Wall).start, (item as Wall).end) : 0;
 
   return (
@@ -261,17 +267,21 @@ export const PropertiesSidebar: React.FC = () => {
 
               <div className="flex gap-2 overflow-x-auto pb-3 mb-2 no-scrollbar">
                 {materialCategories.map(cat => (
-                  <button key={cat} className={cn(
-                    "whitespace-nowrap px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all",
-                    cat === materialCategories[0] ? "bg-blue-600 border-blue-600 text-white shadow-sm" : "bg-white border-slate-200 text-slate-500"
-                  )}>
+                  <button
+                    key={cat}
+                    onClick={() => setActiveMaterialCategory(cat)}
+                    className={cn(
+                      "whitespace-nowrap px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all",
+                      cat === activeMaterialCategory ? "bg-blue-600 border-blue-600 text-white shadow-sm" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                    )}
+                  >
                     {cat}
                   </button>
                 ))}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {materialCatalog.map((c) => {
+                {filteredMaterials.map((c) => {
                   const currentMaterial = (isWall || isFurniture) ? (item as Wall | Furniture).materialId : undefined;
                   return (
                     <button
