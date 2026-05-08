@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Share2,
   Maximize2,
+  Minimize2,
   Settings,
   Box,
   Layout,
@@ -26,9 +27,9 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { generateBOQ } from '../../lib/pricing';
 import { downloadJson, readJsonFile, upsertProject } from '../../lib/persistence';
 import { AddRoomDialog } from './AddRoomDialog';
+import { QuotationModal } from './QuotationModal';
 
 export const TopBar: React.FC = () => {
   const {
@@ -44,9 +45,6 @@ export const TopBar: React.FC = () => {
     getSnapshot,
     loadSnapshot,
     clearAll,
-    walls,
-    furniture,
-    openings,
     rooms,
     currentRoomId,
     setCurrentRoom,
@@ -59,7 +57,22 @@ export const TopBar: React.FC = () => {
   const [showProjectEditor, setShowProjectEditor] = useState(false);
   const [roomMenuOpen, setRoomMenuOpen] = useState(false);
   const [addRoomOpen, setAddRoomOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const roomMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  };
 
   const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? rooms[0];
 
@@ -98,10 +111,6 @@ export const TopBar: React.FC = () => {
     'Home', 'View', 'Insert', 'Draw', 'Architecture', 'Annotate', 'Render', 'Outputs'
   ];
 
-  const boq = generateBOQ(walls, furniture, openings);
-  const total = boq.reduce((acc, item) => acc + item.total, 0);
-  const gst = Math.round(total * 0.18);
-
   const saveCurrentProject = () => {
     const next = upsertProject(getSnapshot());
     setSavedProjects(next);
@@ -115,111 +124,9 @@ export const TopBar: React.FC = () => {
     event.target.value = '';
   };
 
-  const exportQuote = () => {
-    const rows = boq.map((item) => (
-      `<tr><td>${item.name}</td><td>${item.quantity}</td><td>${item.unit}</td><td>Rs. ${item.rate.toLocaleString()}</td><td>Rs. ${item.total.toLocaleString()}</td></tr>`
-    )).join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${project.projectName} Quote</title><style>
-      body{font-family:Arial,sans-serif;padding:32px;color:#172033} h1{font-size:24px;margin:0 0 4px} .muted{color:#64748b;font-size:12px} table{width:100%;border-collapse:collapse;margin-top:28px} th,td{border-bottom:1px solid #e2e8f0;padding:10px;text-align:left;font-size:12px} th{text-transform:uppercase;color:#64748b;font-size:10px}.totals{margin-left:auto;margin-top:24px;width:280px}.totals div{display:flex;justify-content:space-between;padding:7px 0}.grand{font-weight:800;font-size:18px;border-top:1px solid #cbd5e1}.footer{margin-top:50px;text-align:center;color:#64748b;font-size:11px}
-    </style></head><body>
-      <h1>Quotation for ${project.projectName}</h1>
-      <div class="muted">Client: ${project.clientName || '-'} · Project ID: ${project.projectId} · Room: ${project.room}</div>
-      <table><thead><tr><th>Item Description</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="totals"><div><span>Subtotal</span><strong>Rs. ${total.toLocaleString()}</strong></div><div><span>GST 18%</span><strong>Rs. ${gst.toLocaleString()}</strong></div><div class="grand"><span>Grand Total</span><span>Rs. ${(total + gst).toLocaleString()}</span></div></div>
-      <div class="footer">Issued by Namaste Design · GSTIN: 27IEAPK2697H1Z4 · Registered Address: Plot 60, Office 301, Shiva Prakash, Goregaon East, Mumbai 400063</div>
-    </body></html>`;
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-    }
-  };
-
   return (
     <div className="h-12 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-[100] select-none">
-      {/* Quotation Overlay */}
-      {showQuotation && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-8">
-          <div className="bg-white w-full max-w-4xl max-h-full rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-                  <FileText size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-tight">Project Quotation</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Bill of Quantities (BOQ)</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={exportQuote}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
-                >
-                  <Download size={14} />
-                  <span>Print / Save PDF</span>
-                </button>
-                <button 
-                  onClick={() => setShowQuotation(false)}
-                  className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 transition-all"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="pb-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider">Item Description</th>
-                    <th className="pb-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider text-right">Qty</th>
-                    <th className="pb-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider text-right">Unit</th>
-                    <th className="pb-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider text-right">Rate</th>
-                    <th className="pb-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {boq.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3.5 text-xs font-bold text-slate-700">{item.name}</td>
-                      <td className="py-3.5 text-xs font-semibold text-slate-500 text-right">{item.quantity}</td>
-                      <td className="py-3.5 text-xs font-semibold text-slate-500 text-right uppercase tracking-tighter">{item.unit}</td>
-                      <td className="py-3.5 text-xs font-semibold text-slate-600 text-right">₹{item.rate.toLocaleString()}</td>
-                      <td className="py-3.5 text-xs font-bold text-slate-900 text-right">₹{item.total.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              {boq.length === 0 && (
-                <div className="py-20 flex flex-col items-center justify-center text-slate-300">
-                  <FileText size={48} className="mb-4 opacity-20" />
-                  <p className="text-sm font-medium">Add some items to generate a quote</p>
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-6 border-t border-slate-100 bg-slate-50/50 flex flex-col items-end gap-1">
-              <div className="flex items-center gap-12 w-full justify-between lg:w-fit">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Subtotal</span>
-                <span className="text-sm font-bold text-slate-600">₹{total.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center gap-12 w-full justify-between lg:w-fit mt-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tax (GST 18%)</span>
-                <span className="text-sm font-bold text-slate-600">₹{(total * 0.18).toLocaleString()}</span>
-              </div>
-              <div className="h-px bg-slate-200 w-full lg:w-64 my-2" />
-              <div className="flex items-center gap-12 w-full justify-between lg:w-fit">
-                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Grand Total</span>
-                <span className="text-xl font-black text-blue-600">₹{(total * 1.18).toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <QuotationModal open={showQuotation} onClose={() => setShowQuotation(false)} />
 
       {showProjectEditor && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-8">
@@ -526,8 +433,15 @@ export const TopBar: React.FC = () => {
           <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Share">
             <Share2 size={16} />
           </button>
-          <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Full Screen">
-            <Maximize2 size={16} />
+          <button
+            onClick={toggleFullscreen}
+            className={cn(
+              'p-1.5 hover:bg-slate-50 rounded transition-all',
+              isFullscreen ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600',
+            )}
+            title={isFullscreen ? 'Exit Full Screen (Esc)' : 'Enter Full Screen'}
+          >
+            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
           <button 
             onClick={() => setShowQuotation(true)}

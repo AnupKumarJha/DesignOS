@@ -156,6 +156,7 @@ interface AppState {
   materialDrawerOpen: boolean;
   materialDrawerCategory: string;
   saveStatus: 'idle' | 'saving' | 'saved';
+  catalogWidth: number;
 
   // Actions
   setWorkspaceMode: (mode: WorkspaceMode) => void;
@@ -186,6 +187,7 @@ interface AppState {
   setMaterialDrawerOpen: (open: boolean) => void;
   setMaterialDrawerCategory: (category: string) => void;
   setSaveStatus: (status: 'idle' | 'saving' | 'saved') => void;
+  setCatalogWidth: (w: number) => void;
 
   // Room actions
   addRoom: (room: Omit<Room, 'id' | 'createdAt'>) => string;
@@ -270,6 +272,7 @@ export const useStore = create<AppState>()(
       materialDrawerOpen: false,
       materialDrawerCategory: 'Solid Paints',
       saveStatus: 'idle' as const,
+      catalogWidth: 300,
 
       setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
 
@@ -377,6 +380,7 @@ export const useStore = create<AppState>()(
       setMaterialDrawerOpen: (open) => set({ materialDrawerOpen: open }),
       setMaterialDrawerCategory: (category) => set({ materialDrawerCategory: category }),
       setSaveStatus: (status) => set({ saveStatus: status }),
+      setCatalogWidth: (w) => set({ catalogWidth: Math.max(220, Math.min(600, w)) }),
 
       // ── Multi-room actions ──────────────────────────────────────────
       addRoom: (room) => {

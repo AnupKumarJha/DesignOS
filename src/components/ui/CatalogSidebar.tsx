@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useStore, CatalogCategory, Tool } from '../../store/useStore';
 import {
   DoorOpen,
@@ -42,10 +42,36 @@ export const CatalogSidebar: React.FC = () => {
     setActiveTool,
     setActiveFinish,
     setSelectedCatalogItem,
+    catalogWidth,
+    setCatalogWidth,
   } = useStore();
 
   const [search, setSearch] = useState('');
   const [roomFilter, setRoomFilter] = useState<'All' | RoomType>('All');
+  const [resizing, setResizing] = useState(false);
+  const resizingRef = useRef(false);
+
+  useEffect(() => {
+    if (!resizing) return;
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return;
+      setCatalogWidth(e.clientX);
+    };
+    const onUp = () => {
+      resizingRef.current = false;
+      setResizing(false);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [resizing, setCatalogWidth]);
 
   const categories: { id: CatalogCategory; icon: any; label: string }[] = [
     { id: 'ARCHITECTURE', icon: LayoutTemplate, label: 'Arc' },
@@ -133,7 +159,10 @@ export const CatalogSidebar: React.FC = () => {
   if (!catalogOpen) return null;
 
   return (
-    <div className="w-[300px] h-full bg-[#f8fafc] border-r border-slate-200 flex flex-col z-40 transition-all shadow-xl">
+    <div
+      className="relative h-full bg-[#f8fafc] border-r border-slate-200 flex flex-col z-40 shadow-xl shrink-0"
+      style={{ width: catalogWidth }}
+    >
       {/* Search Header */}
       <div className="p-4 bg-white border-b border-slate-200 shadow-sm">
         <div className="relative mb-4">
@@ -270,6 +299,26 @@ export const CatalogSidebar: React.FC = () => {
         <div className="flex gap-1.5 grayscale opacity-50">
           <GripHorizontal size={14} className="text-slate-400" />
         </div>
+      </div>
+
+      {/* Drag handle for resizing */}
+      <div
+        onMouseDown={(e) => {
+          e.preventDefault();
+          resizingRef.current = true;
+          setResizing(true);
+        }}
+        onDoubleClick={() => setCatalogWidth(300)}
+        title="Drag to resize · double-click to reset"
+        className={cn(
+          'absolute top-0 right-0 h-full w-1.5 -mr-0.5 cursor-col-resize z-50 group',
+          resizing ? 'bg-blue-400' : 'hover:bg-blue-300/60',
+        )}
+      >
+        <div className={cn(
+          'absolute top-1/2 -translate-y-1/2 -right-1 w-1 h-12 rounded-full transition-opacity',
+          resizing ? 'bg-blue-500 opacity-100' : 'bg-slate-300 opacity-0 group-hover:opacity-100',
+        )} />
       </div>
     </div>
   );
