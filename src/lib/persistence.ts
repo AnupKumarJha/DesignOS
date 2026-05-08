@@ -1,4 +1,4 @@
-import { DesignSnapshot } from '../store/useStore';
+import { DesignSnapshot, ProjectStatus } from '../store/useStore';
 
 const STORAGE_KEY = 'namaste-design-os-projects';
 
@@ -28,7 +28,35 @@ export function upsertProject(snapshot: DesignSnapshot): DesignSnapshot[] {
 }
 
 export function deleteProject(projectId: string): DesignSnapshot[] {
-  const next = loadProjects().filter((project) => project.project.id !== projectId);
+  const now = new Date().toISOString();
+  const next = loadProjects().map((snapshot) =>
+    snapshot.project.id === projectId ? { ...snapshot, deletedAt: now } : snapshot,
+  );
+  saveProjects(next);
+  return next;
+}
+
+export function restoreProject(projectId: string): DesignSnapshot[] {
+  const next = loadProjects().map((snapshot) =>
+    snapshot.project.id === projectId ? { ...snapshot, deletedAt: null } : snapshot,
+  );
+  saveProjects(next);
+  return next;
+}
+
+export function permanentlyDeleteProject(projectId: string): DesignSnapshot[] {
+  const next = loadProjects().filter((snapshot) => snapshot.project.id !== projectId);
+  saveProjects(next);
+  return next;
+}
+
+export function updateProjectStatus(projectId: string, status: ProjectStatus): DesignSnapshot[] {
+  const now = new Date().toISOString();
+  const next = loadProjects().map((snapshot) =>
+    snapshot.project.id === projectId
+      ? { ...snapshot, project: { ...snapshot.project, status, updatedAt: now } }
+      : snapshot,
+  );
   saveProjects(next);
   return next;
 }

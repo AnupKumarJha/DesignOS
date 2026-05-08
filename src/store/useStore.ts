@@ -55,27 +55,32 @@ export type WorkspaceMode = 'DASHBOARD' | 'DESIGN';
 export type Tool = 'SELECT' | 'WALL' | 'FURNITURE' | 'WINDOW' | 'DOOR' | 'DELETE' | 'APPLY_FINISH';
 export type CatalogCategory = 'ARCHITECTURE' | 'FURNITURE' | 'FINISHES';
 
+export type ProjectType = 'Residential' | 'Commercial';
+export type ProjectStatus = 'Design Phase' | 'In Review' | 'In Production' | 'Completed';
+
 export interface ProjectMeta {
   id: string;
   projectName: string;
   clientName: string;
   clientDetails: string;
   projectId: string;
+  projectType: ProjectType;
   building: string;
   floor: string;
   room: string;
-  status: string;
+  status: ProjectStatus;
   updatedAt: string;
 }
 
 export interface DesignSnapshot {
-  schemaVersion: 1;
+  schemaVersion: 2;
   project: ProjectMeta;
   walls: Wall[];
   openings: WallOpening[];
   furniture: Furniture[];
   viewMode: ViewMode;
   cameraPreset: CameraPreset;
+  deletedAt?: string | null;
 }
 
 interface AppState {
@@ -136,6 +141,7 @@ const createProject = (): ProjectMeta => {
     clientName: 'Anup & Rishu',
     clientDetails: '',
     projectId: `PN-${Math.floor(10000 + Math.random() * 90000)}`,
+    projectType: 'Residential',
     building: 'Building 1',
     floor: 'Ground Floor',
     room: 'Kitchen',
@@ -147,7 +153,7 @@ const createProject = (): ProjectMeta => {
 export const useStore = create<AppState>()(
   temporal(
     subscribeWithSelector((set, get) => ({
-      workspaceMode: 'DESIGN',
+      workspaceMode: 'DASHBOARD',
       project: createProject(),
       savedProjects: [],
       walls: [],
@@ -185,7 +191,7 @@ export const useStore = create<AppState>()(
       getSnapshot: () => {
         const state = get();
         return {
-          schemaVersion: 1,
+          schemaVersion: 2,
           project: { ...state.project, updatedAt: new Date().toISOString() },
           walls: state.walls,
           openings: state.openings,
