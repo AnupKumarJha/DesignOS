@@ -21,6 +21,9 @@ import {
   Trash2,
   Plus,
   Check,
+  Cloud,
+  CloudOff,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { generateBOQ } from '../../lib/pricing';
@@ -49,6 +52,7 @@ export const TopBar: React.FC = () => {
     setCurrentRoom,
     addRoom,
     removeRoom,
+    saveStatus,
   } = useStore();
   const { undo, redo, pastStates, futureStates } = useZustandStore(useStore.temporal, (state: any) => state);
   const [showQuotation, setShowQuotation] = useState(false);
@@ -482,8 +486,28 @@ export const TopBar: React.FC = () => {
 
         <div className="h-4 w-[1px] bg-slate-200" />
 
+        {/* Auto-save indicator */}
+        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 px-2 py-1 rounded bg-slate-50 border border-slate-200" title="Local storage status">
+          {saveStatus === 'saving' ? (
+            <>
+              <Loader2 size={11} className="animate-spin text-blue-500" />
+              <span className="text-blue-600">Saving…</span>
+            </>
+          ) : saveStatus === 'saved' ? (
+            <>
+              <Cloud size={11} className="text-emerald-500" />
+              <span className="text-emerald-600">Saved</span>
+            </>
+          ) : (
+            <>
+              <CloudOff size={11} />
+              <span>Auto-save on</span>
+            </>
+          )}
+        </div>
+
         <div className="flex items-center gap-2">
-          <button onClick={saveCurrentProject} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Save">
+          <button onClick={saveCurrentProject} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Save now">
             <Save size={16} />
           </button>
           <button onClick={() => downloadJson(getSnapshot())} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Export JSON">

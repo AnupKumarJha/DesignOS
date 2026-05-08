@@ -23,7 +23,6 @@ import {
   loadProjects,
   permanentlyDeleteProject,
   restoreProject,
-  saveProjects,
   updateProjectStatus,
   upsertProject,
 } from '../../lib/persistence';
@@ -159,8 +158,7 @@ export const ProjectHub: React.FC = () => {
       },
       deletedAt: null,
     };
-    const next = [duplicated, ...savedProjects];
-    saveProjects(next);
+    const next = upsertProject(duplicated);
     setSavedProjects(next);
   };
 

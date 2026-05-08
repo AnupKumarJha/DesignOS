@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useStore } from './store/useStore';
 import { FloorPlan } from './components/viewport-2d/FloorPlan';
 import { Scene3D } from './components/viewport-3d/Scene3D';
@@ -9,12 +9,85 @@ import { ProjectHub } from './components/ui/ProjectHub';
 import { BottomMaterialDrawer } from './components/ui/BottomMaterialDrawer';
 import { useKeyboard } from './hooks/useKeyboard';
 import { cn } from './lib/utils';
+import {
+  bootstrapProjects,
+  autoSaveSnapshot,
+  setLastOpenedProject,
+  getLastOpenedProject,
+} from './lib/persistence';
 
 export default function App() {
   const { viewMode, selection, workspaceMode, cameraPreset } = useStore();
-  
+
   // Register keyboard shortcuts
   useKeyboard();
+
+  // Bootstrap: load IndexedDB into Zustand cache, restore last project
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const projects = await bootstrapProjects();
+      if (cancelled) return;
+      const store = useStore.getState();
+      store.setSavedProjects(projects);
+
+      const lastId = await getLastOpenedProject();
+      if (cancelled || !lastId) return;
+      const last = projects.find((p) => p.project.id === lastId && !p.deletedAt);
+      if (last) store.loadSnapshot(last);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Auto-save: subscribe to design-state changes and persist after 800ms of
+  // inactivity. Skips while on the Project Hub (nothing meaningful in flight).
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const unsub = useStore.subscribe((state, prev) => {
+      // Only persist when meaningful design state actually changed.
+      const designChanged =
+        state.walls !== prev.walls ||
+        state.openings !== prev.openings ||
+        state.furniture !== prev.furniture ||
+        state.rooms !== prev.rooms ||
+        state.currentRoomId !== prev.currentRoomId ||
+        state.project !== prev.project;
+      if (!designChanged) return;
+      if (state.workspaceMode !== 'DESIGN') return;
+
+      state.setSaveStatus('saving');
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(async () => {
+        try {
+          const snapshot = useStore.getState().getSnapshot();
+          await autoSaveSnapshot(snapshot);
+          await setLastOpenedProject(snapshot.project.id);
+          // Re-read snapshot list back into Zustand so Project Hub stays in sync.
+          const fresh = useStore.getState().savedProjects;
+          const replaced = [
+            snapshot,
+            ...fresh.filter((p) => p.project.id !== snapshot.project.id),
+          ];
+          useStore.getState().setSavedProjects(replaced);
+          useStore.getState().setSaveStatus('saved');
+          setTimeout(() => {
+            if (useStore.getState().saveStatus === 'saved') {
+              useStore.getState().setSaveStatus('idle');
+            }
+          }, 1500);
+        } catch (err) {
+          console.error('Auto-save failed:', err);
+          useStore.getState().setSaveStatus('idle');
+        }
+      }, 800);
+    });
+    return () => {
+      unsub();
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 w-full h-screen bg-slate-100 flex flex-col font-sans overflow-hidden select-none">

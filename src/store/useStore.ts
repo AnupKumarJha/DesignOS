@@ -52,6 +52,16 @@ export interface Furniture {
   skirtingHeight?: number;
 }
 
+export interface BackgroundPlan {
+  imageUrl: string;        // data URI of the imported image
+  opacity: number;         // 0..1
+  mmPerPixel: number;      // calibrated scale (mm per image pixel)
+  originX: number;         // world-X of image's top-left corner
+  originY: number;         // world-Y of image's top-left corner
+  naturalWidth: number;    // image native width in pixels
+  naturalHeight: number;   // image native height in pixels
+}
+
 export interface Room {
   id: string;
   name: string;        // Display name, e.g. 'Master Kitchen'
@@ -59,6 +69,7 @@ export interface Room {
   building: string;    // 'Building 1', 'Tower A', etc.
   floor: string;       // 'Ground Floor', '1st Floor'
   createdAt: string;
+  backgroundPlan?: BackgroundPlan | null;
 }
 
 export type ViewMode = '2D' | '3D' | 'SPLIT';
@@ -123,6 +134,7 @@ interface AppState {
   selectedCatalogItem: string | null;
   materialDrawerOpen: boolean;
   materialDrawerCategory: string;
+  saveStatus: 'idle' | 'saving' | 'saved';
 
   // Actions
   setWorkspaceMode: (mode: WorkspaceMode) => void;
@@ -152,12 +164,14 @@ interface AppState {
   setSelectedCatalogItem: (id: string | null) => void;
   setMaterialDrawerOpen: (open: boolean) => void;
   setMaterialDrawerCategory: (category: string) => void;
+  setSaveStatus: (status: 'idle' | 'saving' | 'saved') => void;
 
   // Room actions
   addRoom: (room: Omit<Room, 'id' | 'createdAt'>) => string;
   setCurrentRoom: (roomId: string) => void;
   renameRoom: (roomId: string, name: string) => void;
   removeRoom: (roomId: string) => void;
+  updateRoomBackground: (roomId: string, plan: BackgroundPlan | null) => void;
 
   clearAll: () => void;
 }
@@ -234,6 +248,7 @@ export const useStore = create<AppState>()(
       selectedCatalogItem: null,
       materialDrawerOpen: false,
       materialDrawerCategory: 'Solid Paints',
+      saveStatus: 'idle' as const,
 
       setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
 
@@ -340,6 +355,7 @@ export const useStore = create<AppState>()(
       setSelectedCatalogItem: (id) => set({ selectedCatalogItem: id }),
       setMaterialDrawerOpen: (open) => set({ materialDrawerOpen: open }),
       setMaterialDrawerCategory: (category) => set({ materialDrawerCategory: category }),
+      setSaveStatus: (status) => set({ saveStatus: status }),
 
       // ── Multi-room actions ──────────────────────────────────────────
       addRoom: (room) => {
@@ -385,6 +401,13 @@ export const useStore = create<AppState>()(
           state.currentRoomId === roomId
             ? { ...state.project, room: name, updatedAt: new Date().toISOString() }
             : state.project,
+      })),
+
+      updateRoomBackground: (roomId, plan) => set((state) => ({
+        rooms: state.rooms.map((r) =>
+          r.id === roomId ? { ...r, backgroundPlan: plan } : r,
+        ),
+        project: { ...state.project, updatedAt: new Date().toISOString() },
       })),
 
       removeRoom: (roomId) => set((state) => {

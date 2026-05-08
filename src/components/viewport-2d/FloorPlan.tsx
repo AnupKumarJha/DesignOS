@@ -5,6 +5,8 @@ import { Grid } from './Grid';
 import { Wall2D } from './Wall2D';
 import { Furniture2D } from './Furniture2D';
 import { Opening2D } from './Opening2D';
+import { BackgroundPlanLayer } from './BackgroundPlanLayer';
+import { FloorPlanImportPanel } from '../ui/FloorPlanImportPanel';
 import { snapToGrid, snapToAngle, findClosestPoint, getClosestPointOnSegment, getDistance } from '../../lib/math';
 import { DEFAULT_WALL_HEIGHT, DEFAULT_WALL_THICKNESS } from '../../lib/constants';
 import { getCatalogItem, getMaterial, getVariant } from '../../data/catalog';
@@ -14,7 +16,9 @@ export const FloorPlan: React.FC = () => {
     walls: allWalls,
     openings: allOpenings,
     furniture: allFurniture,
+    rooms,
     currentRoomId,
+    updateRoomBackground,
     activeTool,
     setActiveTool,
     selection,
@@ -31,6 +35,10 @@ export const FloorPlan: React.FC = () => {
     removeFurniture,
     removeOpening
   } = useStore();
+  const currentRoom = rooms.find((r) => r.id === currentRoomId);
+  const backgroundPlan = currentRoom?.backgroundPlan ?? null;
+  const [calibrationMode, setCalibrationMode] = useState(false);
+  const [calibrationPoints, setCalibrationPoints] = useState<Point[]>([]);
 
   // Filter to current room — other rooms exist in the snapshot but are not
   // visible in this viewport. New entities are auto-tagged with currentRoomId.
@@ -157,7 +165,16 @@ export const FloorPlan: React.FC = () => {
 
     const stage = e.target.getStage();
     const pos = getRelativePointerPosition(stage);
-    
+
+    // Calibration mode intercepts clicks: capture up to 2 points, then wait
+    // for distance entry from the panel.
+    if (calibrationMode && backgroundPlan) {
+      if (calibrationPoints.length < 2) {
+        setCalibrationPoints([...calibrationPoints, pos]);
+      }
+      return;
+    }
+
     // De-selection
     if (e.target === stage) {
       setSelection(null);
@@ -267,6 +284,36 @@ export const FloorPlan: React.FC = () => {
     setOffset({ x: e.target.x(), y: e.target.y() });
   };
 
+  const startCalibration = () => {
+    setCalibrationMode(true);
+    setCalibrationPoints([]);
+  };
+
+  const cancelCalibration = () => {
+    setCalibrationMode(false);
+    setCalibrationPoints([]);
+  };
+
+  const commitCalibration = (mm: number) => {
+    if (!backgroundPlan || calibrationPoints.length !== 2 || mm <= 0) return;
+    const [p1, p2] = calibrationPoints;
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const currentDist = Math.sqrt(dx * dx + dy * dy);
+    if (currentDist === 0) return;
+    const factor = mm / currentDist;
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
+    updateRoomBackground(currentRoomId, {
+      ...backgroundPlan,
+      mmPerPixel: backgroundPlan.mmPerPixel * factor,
+      originX: midX + (backgroundPlan.originX - midX) * factor,
+      originY: midY + (backgroundPlan.originY - midY) * factor,
+    });
+    setCalibrationMode(false);
+    setCalibrationPoints([]);
+  };
+
   const handleWallClick = (wall: Wall) => {
     if (activeTool === 'APPLY_FINISH' && activeFinish) {
       const material = getMaterial(activeFinish);
@@ -327,7 +374,10 @@ export const FloorPlan: React.FC = () => {
       >
         <Layer>
           <Grid width={dimensions.width} height={dimensions.height} scale={scale} offset={offset} />
-          
+
+          {/* Reference floor plan (architect import) — beneath walls so designers can trace it */}
+          <BackgroundPlanLayer plan={backgroundPlan} calibrationPoints={calibrationMode ? calibrationPoints : undefined} />
+
           <Group>
             {walls.map((wall) => (
               <Wall2D
@@ -472,6 +522,14 @@ export const FloorPlan: React.FC = () => {
       <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur px-3 py-2 rounded-md text-xs text-slate-500 border border-slate-200">
         Wall tool: click-drag-release to sketch • <span className="text-cyan-600 font-bold">Cyan ring</span> = will snap to existing endpoint • ESC to cancel • Scroll to zoom • Drag to pan
       </div>
+
+      <FloorPlanImportPanel
+        calibrationMode={calibrationMode}
+        calibrationPointsCount={calibrationPoints.length}
+        onStartCalibration={startCalibration}
+        onCancelCalibration={cancelCalibration}
+        onCommitCalibration={commitCalibration}
+      />
     </div>
   );
 };
