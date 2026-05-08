@@ -28,7 +28,22 @@ const isOrthographic: Record<CameraPreset, boolean> = {
 };
 
 export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
-  const { walls, furniture, openings, selection, setSelection, activeTool, activeFinish, updateWall, updateFurniture, setCameraPreset } = useStore();
+  const {
+    walls: allWalls,
+    furniture: allFurniture,
+    openings: allOpenings,
+    currentRoomId,
+    selection,
+    setSelection,
+    activeTool,
+    activeFinish,
+    updateWall,
+    updateFurniture,
+    setCameraPreset,
+  } = useStore();
+  const walls = allWalls.filter((w) => w.roomId === currentRoomId);
+  const furniture = allFurniture.filter((f) => f.roomId === currentRoomId);
+  const openings = allOpenings.filter((o) => o.roomId === currentRoomId);
 
   // Bounds of the entire scene so the camera always frames the room.
   // 2D plan uses (x, y); 3D uses (x, _, -y) — see Wall3D positioning.

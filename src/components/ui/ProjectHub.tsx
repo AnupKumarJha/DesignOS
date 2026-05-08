@@ -112,18 +112,31 @@ export const ProjectHub: React.FC = () => {
 
   const handleCreate = (meta: Partial<ProjectMeta>) => {
     const base = getSnapshot();
+    const projectMeta = {
+      ...base.project,
+      ...meta,
+      id: crypto.randomUUID(),
+      projectId: `PN-${Math.floor(10000 + Math.random() * 90000)}`,
+      clientDetails: '',
+      status: 'Design Phase' as const,
+      updatedAt: new Date().toISOString(),
+    };
+    // Seed the new project with a single starter room so the user can
+    // immediately start drawing and the multi-room hierarchy is consistent.
+    const starterRoom = {
+      id: crypto.randomUUID(),
+      name: projectMeta.room || 'Kitchen',
+      type: projectMeta.room || 'Kitchen',
+      building: projectMeta.building || 'Building 1',
+      floor: projectMeta.floor || 'Ground Floor',
+      createdAt: new Date().toISOString(),
+    };
     const snapshot: DesignSnapshot = {
       ...base,
-      schemaVersion: 2,
-      project: {
-        ...base.project,
-        ...meta,
-        id: crypto.randomUUID(),
-        projectId: `PN-${Math.floor(10000 + Math.random() * 90000)}`,
-        clientDetails: '',
-        status: 'Design Phase',
-        updatedAt: new Date().toISOString(),
-      },
+      schemaVersion: 3,
+      project: projectMeta,
+      rooms: [starterRoom],
+      currentRoomId: starterRoom.id,
       walls: [],
       openings: [],
       furniture: [],

@@ -82,7 +82,7 @@ export const Wall3D: React.FC<Wall3DProps> = ({ wall, openings, isSelected, dept
           color={wall.color || COLORS.WALL_3D}
           map={texture}
           emissive={isSelected ? new THREE.Color(COLORS.SELECTION) : new THREE.Color(0x000000)}
-          emissiveIntensity={isSelected ? 0.22 : 0}
+          emissiveIntensity={isSelected ? 0.08 : 0}
           roughness={finish.roughness}
           metalness={finish.metalness}
           polygonOffset

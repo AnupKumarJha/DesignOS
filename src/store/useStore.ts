@@ -9,6 +9,7 @@ export interface Point {
 
 export interface Wall {
   id: string;
+  roomId: string;
   start: Point;
   end: Point;
   thickness: number;
@@ -21,6 +22,7 @@ export interface Wall {
 
 export interface WallOpening {
   id: string;
+  roomId: string;
   wallId: string;
   type: 'WINDOW' | 'DOOR';
   offset: number; // 0 to 1 along the wall
@@ -32,6 +34,7 @@ export interface WallOpening {
 
 export interface Furniture {
   id: string;
+  roomId: string;
   type: 'CABINET_BASE' | 'CABINET_WALL' | 'CABINET_TALL' | 'TABLE' | 'CHAIR' | 'WARDROBE' | 'SINK_UNIT';
   position: Point;
   rotation: number;
@@ -47,6 +50,15 @@ export interface Furniture {
   drawerCount?: number;
   hasHandle?: boolean;
   skirtingHeight?: number;
+}
+
+export interface Room {
+  id: string;
+  name: string;        // Display name, e.g. 'Master Kitchen'
+  type: string;        // Functional type, e.g. 'Kitchen' / 'Bedroom'
+  building: string;    // 'Building 1', 'Tower A', etc.
+  floor: string;       // 'Ground Floor', '1st Floor'
+  createdAt: string;
 }
 
 export type ViewMode = '2D' | '3D' | 'SPLIT';
@@ -73,8 +85,10 @@ export interface ProjectMeta {
 }
 
 export interface DesignSnapshot {
-  schemaVersion: 2;
+  schemaVersion: 3;
   project: ProjectMeta;
+  rooms: Room[];
+  currentRoomId: string;
   walls: Wall[];
   openings: WallOpening[];
   furniture: Furniture[];
@@ -88,8 +102,12 @@ interface AppState {
   workspaceMode: WorkspaceMode;
   project: ProjectMeta;
   savedProjects: DesignSnapshot[];
-  
-  // Data
+
+  // Multi-room hierarchy
+  rooms: Room[];
+  currentRoomId: string;
+
+  // Data (all rooms — viewports filter by currentRoomId)
   walls: Wall[];
   openings: WallOpening[];
   furniture: Furniture[];
@@ -134,6 +152,13 @@ interface AppState {
   setSelectedCatalogItem: (id: string | null) => void;
   setMaterialDrawerOpen: (open: boolean) => void;
   setMaterialDrawerCategory: (category: string) => void;
+
+  // Room actions
+  addRoom: (room: Omit<Room, 'id' | 'createdAt'>) => string;
+  setCurrentRoom: (roomId: string) => void;
+  renameRoom: (roomId: string, name: string) => void;
+  removeRoom: (roomId: string) => void;
+
   clearAll: () => void;
 }
 
@@ -154,12 +179,48 @@ const createProject = (): ProjectMeta => {
   };
 };
 
+const createDefaultRoom = (project: ProjectMeta): Room => ({
+  id: crypto.randomUUID(),
+  name: project.room || 'Kitchen',
+  type: project.room || 'Kitchen',
+  building: project.building || 'Building 1',
+  floor: project.floor || 'Ground Floor',
+  createdAt: new Date().toISOString(),
+});
+
+/**
+ * Migrates a snapshot from earlier schema (v1/v2) to v3, ensuring
+ * `rooms`, `currentRoomId`, and `roomId` on every entity are present.
+ */
+const migrateSnapshot = (snapshot: DesignSnapshot): DesignSnapshot => {
+  const hasRooms = Array.isArray((snapshot as any).rooms) && (snapshot as any).rooms.length > 0;
+  if (hasRooms && snapshot.currentRoomId) {
+    return snapshot;
+  }
+  const legacyRoom = createDefaultRoom(snapshot.project);
+  const tag = (e: any) => ({ ...e, roomId: e.roomId ?? legacyRoom.id });
+  return {
+    ...snapshot,
+    schemaVersion: 3,
+    rooms: [legacyRoom],
+    currentRoomId: legacyRoom.id,
+    walls: snapshot.walls.map(tag),
+    openings: snapshot.openings.map(tag),
+    furniture: snapshot.furniture.map(tag),
+  };
+};
+
 export const useStore = create<AppState>()(
   temporal(
-    subscribeWithSelector((set, get) => ({
+    subscribeWithSelector((set, get) => {
+      const initialProject = createProject();
+      const initialRoom = createDefaultRoom(initialProject);
+      return {
       workspaceMode: 'DASHBOARD',
-      project: createProject(),
+      project: initialProject,
       savedProjects: [],
+      rooms: [initialRoom],
+      currentRoomId: initialRoom.id,
       walls: [],
       openings: [],
       furniture: [],
@@ -182,23 +243,30 @@ export const useStore = create<AppState>()(
 
       setSavedProjects: (projects) => set({ savedProjects: projects }),
 
-      loadSnapshot: (snapshot) => set({
-        workspaceMode: 'DESIGN',
-        project: { ...snapshot.project, updatedAt: new Date().toISOString() },
-        walls: snapshot.walls,
-        openings: snapshot.openings,
-        furniture: snapshot.furniture,
-        viewMode: snapshot.viewMode,
-        cameraPreset: snapshot.cameraPreset,
-        selection: null,
-        activeTool: 'SELECT',
-      }),
+      loadSnapshot: (snapshot) => {
+        const migrated = migrateSnapshot(snapshot);
+        set({
+          workspaceMode: 'DESIGN',
+          project: { ...migrated.project, updatedAt: new Date().toISOString() },
+          rooms: migrated.rooms,
+          currentRoomId: migrated.currentRoomId,
+          walls: migrated.walls,
+          openings: migrated.openings,
+          furniture: migrated.furniture,
+          viewMode: migrated.viewMode,
+          cameraPreset: migrated.cameraPreset,
+          selection: null,
+          activeTool: 'SELECT',
+        });
+      },
 
       getSnapshot: () => {
         const state = get();
         return {
-          schemaVersion: 2,
+          schemaVersion: 3,
           project: { ...state.project, updatedAt: new Date().toISOString() },
+          rooms: state.rooms,
+          currentRoomId: state.currentRoomId,
           walls: state.walls,
           openings: state.openings,
           furniture: state.furniture,
@@ -207,8 +275,8 @@ export const useStore = create<AppState>()(
         };
       },
 
-      addWall: (wall) => set((state) => ({ 
-        walls: [...state.walls, wall],
+      addWall: (wall) => set((state) => ({
+        walls: [...state.walls, { ...wall, roomId: wall.roomId || state.currentRoomId }],
         project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
@@ -225,7 +293,7 @@ export const useStore = create<AppState>()(
       })),
 
       addOpening: (opening) => set((state) => ({
-        openings: [...state.openings, opening],
+        openings: [...state.openings, { ...opening, roomId: opening.roomId || state.currentRoomId }],
         project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
@@ -241,7 +309,7 @@ export const useStore = create<AppState>()(
       })),
 
       addFurniture: (item) => set((state) => ({
-        furniture: [...state.furniture, item],
+        furniture: [...state.furniture, { ...item, roomId: item.roomId || state.currentRoomId }],
         project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
@@ -272,14 +340,79 @@ export const useStore = create<AppState>()(
       setSelectedCatalogItem: (id) => set({ selectedCatalogItem: id }),
       setMaterialDrawerOpen: (open) => set({ materialDrawerOpen: open }),
       setMaterialDrawerCategory: (category) => set({ materialDrawerCategory: category }),
-      clearAll: () => set({
-        walls: [],
-        furniture: [],
-        openings: [],
-        selection: null,
-        project: { ...get().project, updatedAt: new Date().toISOString() }
+
+      // ── Multi-room actions ──────────────────────────────────────────
+      addRoom: (room) => {
+        const newRoom: Room = {
+          ...room,
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+        };
+        set((state) => ({
+          rooms: [...state.rooms, newRoom],
+          currentRoomId: newRoom.id,
+          selection: null,
+          project: {
+            ...state.project,
+            building: newRoom.building,
+            floor: newRoom.floor,
+            room: newRoom.name,
+            updatedAt: new Date().toISOString(),
+          },
+        }));
+        return newRoom.id;
+      },
+
+      setCurrentRoom: (roomId) => set((state) => {
+        const room = state.rooms.find((r) => r.id === roomId);
+        if (!room) return {};
+        return {
+          currentRoomId: roomId,
+          selection: null,
+          project: {
+            ...state.project,
+            building: room.building,
+            floor: room.floor,
+            room: room.name,
+            updatedAt: new Date().toISOString(),
+          },
+        };
       }),
-    })),
+
+      renameRoom: (roomId, name) => set((state) => ({
+        rooms: state.rooms.map((r) => (r.id === roomId ? { ...r, name } : r)),
+        project:
+          state.currentRoomId === roomId
+            ? { ...state.project, room: name, updatedAt: new Date().toISOString() }
+            : state.project,
+      })),
+
+      removeRoom: (roomId) => set((state) => {
+        // Don't allow removing the last room
+        if (state.rooms.length <= 1) return {};
+        const remaining = state.rooms.filter((r) => r.id !== roomId);
+        const nextCurrent =
+          state.currentRoomId === roomId ? remaining[0].id : state.currentRoomId;
+        return {
+          rooms: remaining,
+          currentRoomId: nextCurrent,
+          walls: state.walls.filter((w) => w.roomId !== roomId),
+          furniture: state.furniture.filter((f) => f.roomId !== roomId),
+          openings: state.openings.filter((o) => o.roomId !== roomId),
+          selection: null,
+          project: { ...state.project, updatedAt: new Date().toISOString() },
+        };
+      }),
+
+      clearAll: () => set((state) => ({
+        walls: state.walls.filter((w) => w.roomId !== state.currentRoomId),
+        furniture: state.furniture.filter((f) => f.roomId !== state.currentRoomId),
+        openings: state.openings.filter((o) => o.roomId !== state.currentRoomId),
+        selection: null,
+        project: { ...state.project, updatedAt: new Date().toISOString() },
+      })),
+      };
+    }),
     {
       limit: 50,
     }

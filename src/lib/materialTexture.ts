@@ -209,16 +209,39 @@ function drawPattern(ctx: CanvasRenderingContext2D, w: number, h: number, m: Mat
       break;
     }
     case 'concrete': {
-      // Speckled noise
+      // Pixel-level fine noise (subtle)
       const img = ctx.getImageData(0, 0, w, h);
       const data = img.data;
       for (let i = 0; i < data.length; i += 4) {
-        const n = (Math.random() - 0.5) * 30;
+        const n = (Math.random() - 0.5) * 40;
         data[i] = clamp(data[i] + n);
         data[i + 1] = clamp(data[i + 1] + n);
         data[i + 2] = clamp(data[i + 2] + n);
       }
       ctx.putImageData(img, 0, 0);
+      // Visible specks — both lighter and darker dots so the wall reads as textured
+      ctx.globalAlpha = 0.45;
+      for (let i = 0; i < 900; i++) {
+        ctx.fillStyle = Math.random() < 0.5 ? darker : lighter;
+        const x = Math.random() * w;
+        const y = Math.random() * h;
+        const r = 0.5 + Math.random() * 1.8;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Larger sparse blotches for stucco/sand paint look
+      ctx.globalAlpha = 0.18;
+      for (let i = 0; i < 30; i++) {
+        ctx.fillStyle = Math.random() < 0.5 ? dark : light;
+        const x = Math.random() * w;
+        const y = Math.random() * h;
+        const r = 6 + Math.random() * 14;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
       break;
     }
     case 'metal': {
@@ -248,19 +271,31 @@ function drawPattern(ctx: CanvasRenderingContext2D, w: number, h: number, m: Mat
       break;
     }
     case 'solid':
-    default:
-      // Slight tonal variation so flat paints don't look CGI-perfect
-      ctx.globalAlpha = 0.06;
-      for (let i = 0; i < 100; i++) {
+    default: {
+      // Soft cloudy tonal variation — visible enough that paint looks
+      // like real wall surface (roller / brush sheen), not flat CGI fill.
+      ctx.globalAlpha = 0.18;
+      for (let i = 0; i < 70; i++) {
         ctx.fillStyle = Math.random() < 0.5 ? light : dark;
         const x = Math.random() * w;
         const y = Math.random() * h;
         ctx.beginPath();
-        ctx.arc(x, y, 80 + Math.random() * 140, 0, Math.PI * 2);
+        ctx.arc(x, y, 60 + Math.random() * 180, 0, Math.PI * 2);
         ctx.fill();
       }
+      // Very fine pixel noise for paint roller texture
       ctx.globalAlpha = 1;
+      const img = ctx.getImageData(0, 0, w, h);
+      const data = img.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const n = (Math.random() - 0.5) * 18;
+        data[i] = clamp(data[i] + n);
+        data[i + 1] = clamp(data[i + 1] + n);
+        data[i + 2] = clamp(data[i + 2] + n);
+      }
+      ctx.putImageData(img, 0, 0);
       break;
+    }
   }
 }
 

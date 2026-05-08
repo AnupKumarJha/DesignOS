@@ -10,26 +10,33 @@ import { DEFAULT_WALL_HEIGHT, DEFAULT_WALL_THICKNESS } from '../../lib/constants
 import { getCatalogItem, getMaterial, getVariant } from '../../data/catalog';
 
 export const FloorPlan: React.FC = () => {
-  const { 
-    walls, 
-    openings,
-    furniture, 
-    activeTool, 
+  const {
+    walls: allWalls,
+    openings: allOpenings,
+    furniture: allFurniture,
+    currentRoomId,
+    activeTool,
     setActiveTool,
-    selection, 
+    selection,
     activeFinish,
     selectedCatalogItem,
-    addWall, 
+    addWall,
     updateWall,
-    addFurniture, 
+    addFurniture,
     updateFurniture,
     addOpening,
     updateOpening,
-    setSelection, 
-    removeWall, 
+    setSelection,
+    removeWall,
     removeFurniture,
-    removeOpening 
+    removeOpening
   } = useStore();
+
+  // Filter to current room — other rooms exist in the snapshot but are not
+  // visible in this viewport. New entities are auto-tagged with currentRoomId.
+  const walls = allWalls.filter((w) => w.roomId === currentRoomId);
+  const openings = allOpenings.filter((o) => o.roomId === currentRoomId);
+  const furniture = allFurniture.filter((f) => f.roomId === currentRoomId);
   
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [scale, setScale] = useState(0.2);
@@ -86,6 +93,7 @@ export const FloorPlan: React.FC = () => {
 
     return {
       id: crypto.randomUUID(),
+      roomId: currentRoomId,
       type: catalogItem.type,
       position: snappedPos,
       rotation,
@@ -189,6 +197,7 @@ export const FloorPlan: React.FC = () => {
         const type = activeTool === 'WINDOW' ? 'WINDOW' : 'DOOR';
         addOpening({
           id: crypto.randomUUID(),
+          roomId: currentRoomId,
           wallId: closestWall.id,
           type,
           offset: bestOffset,
@@ -217,6 +226,7 @@ export const FloorPlan: React.FC = () => {
 
     const newWall: Wall = {
       id: crypto.randomUUID(),
+      roomId: currentRoomId,
       start: draftStart,
       end: wallEnd,
       thickness: DEFAULT_WALL_THICKNESS,
@@ -413,6 +423,7 @@ export const FloorPlan: React.FC = () => {
                      wall={closestWall}
                      opening={{
                        id: 'preview',
+                       roomId: currentRoomId,
                        wallId: closestWall.id,
                        type,
                        offset: getClosestPointOnSegment(currentMousePos, closestWall.start, closestWall.end).offset,

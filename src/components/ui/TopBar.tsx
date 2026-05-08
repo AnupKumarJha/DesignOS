@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore as useZustandStore } from 'zustand';
 import { useStore } from '../../store/useStore';
-import { 
-  Home, 
-  ChevronRight, 
-  Share2, 
-  Maximize2, 
+import {
+  Home,
+  ChevronRight,
+  Share2,
+  Maximize2,
   Settings,
   Box,
   Layout,
@@ -18,11 +18,14 @@ import {
   Save,
   Upload,
   FolderOpen,
-  Trash2
+  Trash2,
+  Plus,
+  Check,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { generateBOQ } from '../../lib/pricing';
 import { downloadJson, readJsonFile, upsertProject } from '../../lib/persistence';
+import { AddRoomDialog } from './AddRoomDialog';
 
 export const TopBar: React.FC = () => {
   const {
@@ -40,11 +43,52 @@ export const TopBar: React.FC = () => {
     clearAll,
     walls,
     furniture,
-    openings
+    openings,
+    rooms,
+    currentRoomId,
+    setCurrentRoom,
+    addRoom,
+    removeRoom,
   } = useStore();
   const { undo, redo, pastStates, futureStates } = useZustandStore(useStore.temporal, (state: any) => state);
   const [showQuotation, setShowQuotation] = useState(false);
   const [showProjectEditor, setShowProjectEditor] = useState(false);
+  const [roomMenuOpen, setRoomMenuOpen] = useState(false);
+  const [addRoomOpen, setAddRoomOpen] = useState(false);
+  const roomMenuRef = useRef<HTMLDivElement>(null);
+
+  const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? rooms[0];
+
+  const existingBuildings = useMemo(
+    () => Array.from(new Set(rooms.map((r) => r.building))),
+    [rooms],
+  );
+  const existingFloors = useMemo(
+    () => Array.from(new Set(rooms.map((r) => r.floor))),
+    [rooms],
+  );
+
+  // Group rooms by building > floor for the picker menu.
+  const groupedRooms = useMemo(() => {
+    const map: Record<string, Record<string, typeof rooms>> = {};
+    rooms.forEach((r) => {
+      if (!map[r.building]) map[r.building] = {};
+      if (!map[r.building][r.floor]) map[r.building][r.floor] = [];
+      map[r.building][r.floor].push(r);
+    });
+    return map;
+  }, [rooms]);
+
+  useEffect(() => {
+    if (!roomMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (roomMenuRef.current && !roomMenuRef.current.contains(e.target as Node)) {
+        setRoomMenuOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
+  }, [roomMenuOpen]);
 
   const menuItems = [
     'Home', 'View', 'Insert', 'Draw', 'Architecture', 'Annotate', 'Render', 'Outputs'
@@ -242,26 +286,120 @@ export const TopBar: React.FC = () => {
 
         <div className="h-4 w-[1px] bg-slate-200" />
 
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium relative" ref={roomMenuRef}>
           <Home size={14} />
           <ChevronRight size={12} className="text-slate-300" />
           <button onClick={() => setWorkspaceMode('DASHBOARD')} className="hover:text-blue-600 cursor-pointer transition-colors px-1">
             {workspaceMode === 'DASHBOARD' ? 'Project Hub' : project.projectName}
           </button>
           <ChevronRight size={12} className="text-slate-300" />
+          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">{currentRoom?.building ?? project.building}</span>
+          <ChevronRight size={12} className="text-slate-300" />
+          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">{currentRoom?.floor ?? project.floor}</span>
+          <ChevronRight size={12} className="text-slate-300" />
           <button
-            onClick={() => setShowProjectEditor(true)}
-            className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded cursor-pointer flex items-center gap-1 group"
+            onClick={() => setRoomMenuOpen((v) => !v)}
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded transition-all',
+              roomMenuOpen
+                ? 'bg-blue-600 text-white'
+                : 'bg-blue-50 text-blue-700 hover:bg-blue-100',
+            )}
+            title="Switch room"
           >
-            <span>{project.building}</span>
-            <ChevronRight size={10} className="rotate-90 text-slate-400" />
+            <span className="font-bold">{currentRoom?.name ?? project.room}</span>
+            <ChevronRight size={10} className={cn('rotate-90 transition-transform', roomMenuOpen && '-rotate-90')} />
           </button>
-          <ChevronRight size={12} className="text-slate-300" />
-          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">{project.floor}</span>
-          <ChevronRight size={12} className="text-slate-300" />
-          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">{project.room}</span>
+
+          {roomMenuOpen && (
+            <div
+              className="absolute top-full mt-2 left-0 z-[150] w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-slate-100">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rooms</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">{rooms.length} room{rooms.length !== 1 ? 's' : ''} in this project</div>
+              </div>
+              <div className="max-h-72 overflow-y-auto py-2">
+                {Object.entries(groupedRooms).map(([building, floors]) => (
+                  <div key={building} className="mb-2">
+                    <div className="px-4 pt-2 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      {building}
+                    </div>
+                    {Object.entries(floors).map(([floor, floorRooms]) => (
+                      <div key={floor}>
+                        <div className="px-4 pb-1 text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+                          {floor}
+                        </div>
+                        {floorRooms.map((r) => (
+                          <button
+                            key={r.id}
+                            onClick={() => {
+                              setCurrentRoom(r.id);
+                              setRoomMenuOpen(false);
+                            }}
+                            className={cn(
+                              'w-full px-4 py-2 flex items-center justify-between text-left hover:bg-slate-50 transition-colors',
+                              r.id === currentRoomId && 'bg-blue-50',
+                            )}
+                          >
+                            <div className="flex flex-col">
+                              <span className={cn(
+                                'text-[12px] font-bold',
+                                r.id === currentRoomId ? 'text-blue-700' : 'text-slate-700',
+                              )}>{r.name}</span>
+                              <span className="text-[10px] text-slate-400">{r.type}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {r.id === currentRoomId && <Check size={14} className="text-blue-600" />}
+                              {rooms.length > 1 && r.id !== currentRoomId && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Delete "${r.name}" and all its walls/furniture?`)) {
+                                      removeRoom(r.id);
+                                    }
+                                  }}
+                                  className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded"
+                                  title="Delete room"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  setRoomMenuOpen(false);
+                  setAddRoomOpen(true);
+                }}
+                className="w-full px-4 py-3 border-t border-slate-100 bg-slate-50/50 hover:bg-slate-100 flex items-center justify-center gap-2 text-[11px] font-black text-blue-600"
+              >
+                <Plus size={14} />
+                Add Room
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      <AddRoomDialog
+        open={addRoomOpen}
+        onClose={() => setAddRoomOpen(false)}
+        onCreate={(room) => {
+          addRoom(room);
+          setAddRoomOpen(false);
+        }}
+        existingBuildings={existingBuildings}
+        existingFloors={existingFloors}
+        defaultBuilding={currentRoom?.building}
+        defaultFloor={currentRoom?.floor}
+      />
 
       {/* Center: Menu Items */}
       <nav className="hidden lg:flex items-center gap-1">
