@@ -37,6 +37,13 @@ export interface FurnitureCatalogItem {
   sku?: string;          // brand SKU code
   roomTypes?: RoomType[]; // which rooms this item belongs to (for filtering)
   mountHeight?: number;  // default Y elevation in mm (0 = floor, 1500 = wall-mounted, etc.)
+  modelUrl?: string;     // Optional optimized GLB/GLTF asset path for render mode
+  thumbnailUrl?: string; // Optional catalog/render thumbnail
+  renderScale?: number;
+  renderRotation?: [number, number, number];
+  renderOffset?: [number, number, number];
+  assetSource?: string;
+  licenseNote?: string;
 }
 
 export type FinishType = 'Matte' | 'Glossy' | 'Textured' | 'Natural' | 'Polished' | 'Reflective';

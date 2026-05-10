@@ -54,14 +54,16 @@ function loadImageTexture(url: string): THREE.Texture {
 /**
  * Maps a finishType to physical surface properties for meshStandardMaterial.
  */
-export function getFinishProps(finishType: FinishType | undefined): { roughness: number; metalness: number } {
+export function getFinishProps(
+  finishType: FinishType | undefined,
+): { roughness: number; metalness: number; clearcoat?: number; clearcoatRoughness?: number; transmission?: number; opacity?: number } {
   switch (finishType) {
-    case 'Glossy':     return { roughness: 0.18, metalness: 0.05 };
-    case 'Polished':   return { roughness: 0.12, metalness: 0.05 };
-    case 'Reflective': return { roughness: 0.15, metalness: 0.65 };
-    case 'Matte':      return { roughness: 0.92, metalness: 0 };
-    case 'Textured':   return { roughness: 0.85, metalness: 0 };
-    case 'Natural':    return { roughness: 0.7, metalness: 0 };
+    case 'Glossy':     return { roughness: 0.16, metalness: 0.03, clearcoat: 0.65, clearcoatRoughness: 0.16 };
+    case 'Polished':   return { roughness: 0.1, metalness: 0.02, clearcoat: 0.8, clearcoatRoughness: 0.08 };
+    case 'Reflective': return { roughness: 0.18, metalness: 0.55, clearcoat: 0.45, clearcoatRoughness: 0.12 };
+    case 'Matte':      return { roughness: 0.86, metalness: 0 };
+    case 'Textured':   return { roughness: 0.78, metalness: 0 };
+    case 'Natural':    return { roughness: 0.52, metalness: 0, clearcoat: 0.18, clearcoatRoughness: 0.35 };
     default:           return { roughness: 0.65, metalness: 0 };
   }
 }

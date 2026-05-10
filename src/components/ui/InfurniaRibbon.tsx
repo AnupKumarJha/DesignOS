@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Box,
   Brush,
+  Camera,
   DoorOpen,
   FileText,
   Grid2X2,
@@ -49,12 +50,30 @@ export const InfurniaRibbon: React.FC<InfurniaRibbonProps> = ({
     setCameraPreset,
     presentationMode,
     setPresentationMode,
+    setRenderQuality,
+    setRenderCameraPreset,
+    setActiveRenderRoomType,
+    setShowCeiling,
+    setShowDecor,
+    setShowLights,
   } = useStore();
 
   const setTool = (tool: Tool, category?: Parameters<typeof setActiveCategory>[0]) => {
     setActiveTool(tool);
     if (category) setActiveCategory(category);
     setCatalogOpen(true);
+  };
+
+  const openRealisticRender = () => {
+    setViewMode('3D');
+    setCameraPreset('FREE');
+    setRenderQuality('High');
+    setRenderCameraPreset('Wide Interior');
+    setActiveRenderRoomType('Auto');
+    setShowCeiling(true);
+    setShowDecor(true);
+    setShowLights(true);
+    setPresentationMode(true);
   };
 
   const groupedTools = [
@@ -99,6 +118,14 @@ export const InfurniaRibbon: React.FC<InfurniaRibbonProps> = ({
       ],
     },
     {
+      title: 'Render',
+      tools: [
+        { label: 'Real', icon: Camera, active: presentationMode, onClick: openRealisticRender },
+        { label: 'Light', icon: Lightbulb, onClick: openRealisticRender },
+        { label: 'Finish', icon: Sparkles, onClick: () => setTool('APPLY_FINISH', 'FINISHES') },
+      ],
+    },
+    {
       title: 'Annotate',
       tools: [
         { label: 'Dim.', icon: Ruler, disabled: true },
@@ -109,7 +136,10 @@ export const InfurniaRibbon: React.FC<InfurniaRibbonProps> = ({
     {
       title: 'Outputs',
       tools: [
-        { label: 'Pres.', icon: Maximize2, active: presentationMode, onClick: () => setPresentationMode(!presentationMode) },
+        { label: 'Pres.', icon: Maximize2, active: presentationMode, onClick: () => {
+          if (presentationMode) setPresentationMode(false);
+          else openRealisticRender();
+        } },
         { label: '+Pres.', icon: FileText, onClick: onOpenOutputs },
         { label: 'Catalog', icon: TableProperties, onClick: onOpenCatalogAdmin },
         { label: 'Share', icon: Share2, disabled: true },

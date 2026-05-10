@@ -26,6 +26,7 @@ export default function App() {
   const { undo, redo } = useZustandStore(useStore.temporal, (state: any) => state);
   const [outputsOpen, setOutputsOpen] = React.useState(false);
   const [catalogAdminOpen, setCatalogAdminOpen] = React.useState(false);
+  const [viewportNavCollapsed, setViewportNavCollapsed] = React.useState(false);
 
   // Register keyboard shortcuts
   useKeyboard();
@@ -111,7 +112,7 @@ export default function App() {
   return (
     <div className="fixed inset-0 w-full h-screen bg-slate-100 flex flex-col font-sans overflow-hidden select-none">
       {workspaceMode === 'DASHBOARD' && <ProjectHub />}
-      <TopBar />
+      {!presentationMode && <TopBar />}
       {workspaceMode === 'DESIGN' && !presentationMode && (
         <InfurniaRibbon
           onOpenOutputs={() => setOutputsOpen(true)}
@@ -155,10 +156,18 @@ export default function App() {
             </>
           )}
 
-          {workspaceMode === 'DESIGN' && <ViewportNavigation />}
+          {workspaceMode === 'DESIGN' && (
+            <ViewportNavigation
+              collapsed={viewportNavCollapsed}
+              onCollapsedChange={setViewportNavCollapsed}
+            />
+          )}
 
           {/* Canvas Overlay Labels */}
-          {!presentationMode && <div className="absolute top-4 left-[276px] z-20 pointer-events-none flex flex-col gap-1">
+          {!presentationMode && <div
+            className="absolute top-4 z-20 pointer-events-none flex flex-col gap-1 transition-[left] duration-200 ease-out"
+            style={{ left: viewportNavCollapsed ? 64 : 276 }}
+          >
              <div className="flex items-center gap-2 bg-white/60 backdrop-blur px-2 py-0.5 rounded border border-white/40 shadow-sm">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Viewport</span>
                 <span className="text-[10px] font-bold text-slate-800 uppercase">{viewMode} Mode</span>

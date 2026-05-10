@@ -41,6 +41,13 @@ export const PropertiesSidebar: React.FC = () => {
   const currentMaterialId =
     (isWall || isFurniture) ? (item as Wall | Furniture).materialId : undefined;
   const currentMaterial = getMaterial(currentMaterialId);
+  const selectedTypeLabel = isWall ? 'Wall' : isFurniture ? 'Furniture' : (item as any).type;
+
+  const deleteSelectedItem = () => {
+    if (isWall) removeWall(item.id);
+    else if (isFurniture) removeFurniture(item.id);
+    else if (isOpening) removeOpening(item.id);
+  };
 
   // Parent wall lookup for openings (door/window) — needed for offset-in-mm
   const parentWall =
@@ -70,8 +77,20 @@ export const PropertiesSidebar: React.FC = () => {
         <button 
           onClick={() => setSelection(null)}
           className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 transition-all"
+          title="Close properties"
+          aria-label="Close properties"
         >
           <X size={18} />
+        </button>
+      </div>
+
+      <div className="px-5 py-3 bg-white border-b border-slate-200 shrink-0">
+        <button
+          onClick={deleteSelectedItem}
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-red-50 text-red-600 rounded-xl text-[11px] font-black hover:bg-red-100 transition-all border border-red-100"
+        >
+          <Trash2 size={15} />
+          <span>DELETE {String(selectedTypeLabel).toUpperCase()}</span>
         </button>
       </div>
 
@@ -515,15 +534,11 @@ export const PropertiesSidebar: React.FC = () => {
         {/* Danger Zone */}
         <div className="p-6">
           <button
-            onClick={() => {
-              if (isWall) removeWall(item.id);
-              else if (isFurniture) removeFurniture(item.id);
-              else if (isOpening) removeOpening(item.id);
-            }}
+            onClick={deleteSelectedItem}
             className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-all border border-red-100"
           >
             <Trash2 size={16} />
-            <span>DELETE COMPONENT</span>
+            <span>DELETE {String(selectedTypeLabel).toUpperCase()}</span>
           </button>
         </div>
       </div>

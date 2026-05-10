@@ -99,6 +99,9 @@ export type WorkspaceMode = 'DASHBOARD' | 'DESIGN';
 export type Tool = 'SELECT' | 'WALL' | 'FURNITURE' | 'WINDOW' | 'DOOR' | 'DELETE' | 'APPLY_FINISH';
 export type CatalogCategory = 'ARCHITECTURE' | 'FURNITURE' | 'FINISHES';
 export type RibbonTab = 'Home' | 'View' | 'Insert' | 'Draw' | 'Architecture' | 'Annotate' | 'Render' | 'Outputs';
+export type RenderQuality = 'Preview' | 'High';
+export type RenderCameraPreset = 'Wide Interior' | 'Eye Level' | 'Corner View' | 'Ceiling View' | 'Furniture Focus';
+export type RenderRoomType = 'Auto' | 'Kitchen' | 'Master Bedroom' | 'Bedroom' | 'Hall' | 'Dining' | 'Bathroom' | 'Office' | 'Foyer' | 'Balcony';
 
 export type ProjectType = 'Residential' | 'Commercial';
 export type ProjectStatus = 'Design Phase' | 'In Review' | 'In Production' | 'Completed';
@@ -160,6 +163,13 @@ interface AppState {
   catalogWidth: number;
   ribbonTab: RibbonTab;
   presentationMode: boolean;
+  renderQuality: RenderQuality;
+  renderCameraPreset: RenderCameraPreset;
+  activeRenderRoomType: RenderRoomType;
+  showCeiling: boolean;
+  showDecor: boolean;
+  showLights: boolean;
+  showDimensions: boolean;
 
   // Actions
   setWorkspaceMode: (mode: WorkspaceMode) => void;
@@ -193,6 +203,13 @@ interface AppState {
   setCatalogWidth: (w: number) => void;
   setRibbonTab: (tab: RibbonTab) => void;
   setPresentationMode: (enabled: boolean) => void;
+  setRenderQuality: (quality: RenderQuality) => void;
+  setRenderCameraPreset: (preset: RenderCameraPreset) => void;
+  setActiveRenderRoomType: (roomType: RenderRoomType) => void;
+  setShowCeiling: (show: boolean) => void;
+  setShowDecor: (show: boolean) => void;
+  setShowLights: (show: boolean) => void;
+  setShowDimensions: (show: boolean) => void;
 
   // Room actions
   addRoom: (room: Omit<Room, 'id' | 'createdAt'>) => string;
@@ -280,6 +297,13 @@ export const useStore = create<AppState>()(
       catalogWidth: 300,
       ribbonTab: 'Home',
       presentationMode: false,
+      renderQuality: 'High',
+      renderCameraPreset: 'Wide Interior',
+      activeRenderRoomType: 'Auto',
+      showCeiling: true,
+      showDecor: true,
+      showLights: true,
+      showDimensions: false,
 
       setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
 
@@ -390,6 +414,13 @@ export const useStore = create<AppState>()(
       setCatalogWidth: (w) => set({ catalogWidth: Math.max(220, Math.min(600, w)) }),
       setRibbonTab: (tab) => set({ ribbonTab: tab }),
       setPresentationMode: (enabled) => set({ presentationMode: enabled }),
+      setRenderQuality: (quality) => set({ renderQuality: quality }),
+      setRenderCameraPreset: (preset) => set({ renderCameraPreset: preset }),
+      setActiveRenderRoomType: (roomType) => set({ activeRenderRoomType: roomType }),
+      setShowCeiling: (show) => set({ showCeiling: show }),
+      setShowDecor: (show) => set({ showDecor: show }),
+      setShowLights: (show) => set({ showLights: show }),
+      setShowDimensions: (show) => set({ showDimensions: show }),
 
       // ── Multi-room actions ──────────────────────────────────────────
       addRoom: (room) => {

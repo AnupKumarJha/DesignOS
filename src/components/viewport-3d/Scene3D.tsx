@@ -1,11 +1,22 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, OrthographicCamera, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
+import { ContactShadows, Environment, Grid, GizmoHelper, GizmoViewport, OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
+import { Bloom, EffectComposer, SSAO, Vignette } from '@react-three/postprocessing';
+import * as THREE from 'three';
 import { CameraPreset, useStore } from '../../store/useStore';
 import { Wall3D } from './Wall3D';
 import { Furniture3D } from './Furniture3D';
 import { cn } from '../../lib/utils';
 import { getMaterial } from '../../data/catalog';
+import {
+  downloadCanvasPng,
+  getRenderCameraPosition,
+  getRenderTarget,
+  getRoomBounds,
+  inferRenderRoomType,
+} from '../../lib/rendering';
+import { RenderRoomKit } from './RenderRoomKit';
+import { RenderToolbar } from './RenderToolbar';
 
 interface Scene3DProps {
   cameraPreset?: CameraPreset;
@@ -41,10 +52,20 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
     updateFurniture,
     setCameraPreset,
     presentationMode,
+    renderQuality,
+    renderCameraPreset,
+    activeRenderRoomType,
+    showCeiling,
+    showDecor,
+    showLights,
+    rooms,
   } = useStore();
   const walls = allWalls.filter((w) => w.roomId === currentRoomId);
   const furniture = allFurniture.filter((f) => f.roomId === currentRoomId);
   const openings = allOpenings.filter((o) => o.roomId === currentRoomId);
+  const currentRoom = rooms.find((room) => room.id === currentRoomId);
+  const renderRoomType = inferRenderRoomType(currentRoom, activeRenderRoomType);
+  const renderBounds = useMemo(() => getRoomBounds(walls, furniture), [walls, furniture]);
 
   // Bounds of the entire scene so the camera always frames the room.
   // 2D plan uses (x, y); 3D uses (x, _, -y) — see Wall3D positioning.
@@ -74,6 +95,9 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
   }, [walls, furniture]);
 
   const cameraPosition = useMemo<[number, number, number]>(() => {
+    if (presentationMode) {
+      return getRenderCameraPosition(renderCameraPreset, renderBounds);
+    }
     const dist = sceneBounds.size * 1.4;
     const { centerX, centerZ } = sceneBounds;
     switch (cameraPreset) {
@@ -89,10 +113,13 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
       default:
         return [centerX + dist, dist, centerZ + dist];
     }
-  }, [cameraPreset, sceneBounds]);
+  }, [cameraPreset, sceneBounds, presentationMode, renderBounds, renderCameraPreset]);
 
-  const targetVec: [number, number, number] = [sceneBounds.centerX, 0, sceneBounds.centerZ];
+  const targetVec: [number, number, number] = presentationMode
+    ? getRenderTarget(renderCameraPreset, renderBounds)
+    : [sceneBounds.centerX, 0, sceneBounds.centerZ];
   const orbitRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Re-target controls whenever the scene bounds change so the orbit pivot
   // stays at the room's centroid even after editing.
@@ -102,47 +129,91 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
       orbitRef.current.update();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sceneBounds.centerX, sceneBounds.centerZ, cameraPreset]);
+  }, [sceneBounds.centerX, sceneBounds.centerZ, cameraPreset, presentationMode, renderCameraPreset, renderBounds.centerX, renderBounds.centerZ]);
 
-  const orthographic = isOrthographic[cameraPreset];
+  const orthographic = !presentationMode && isOrthographic[cameraPreset];
+  const captureRender = () => {
+    const canvas = containerRef.current?.querySelector('canvas') ?? null;
+    const name = `${currentRoom?.name ?? 'room'}-${renderRoomType}-render.png`
+      .replace(/[^a-z0-9-_.]+/gi, '-')
+      .toLowerCase();
+    downloadCanvasPng(canvas, name);
+  };
 
   return (
-    <div className={cn("w-full h-full relative", presentationMode ? "bg-sky-50" : "bg-slate-50")}>
+    <div ref={containerRef} className={cn("w-full h-full relative", presentationMode ? "bg-[#f5efe6]" : "bg-slate-50")}>
       <Canvas
         shadows
         gl={{
           antialias: true,
           logarithmicDepthBuffer: true,
           powerPreference: 'high-performance',
+          preserveDrawingBuffer: true,
+        }}
+        dpr={presentationMode && renderQuality === 'High' ? [1, 2] : [1, 1.5]}
+        camera={{ fov: presentationMode ? 42 : 50 }}
+        onCreated={({ gl }) => {
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = presentationMode ? 1.08 : 0.95;
+          gl.shadowMap.enabled = true;
+          gl.shadowMap.type = THREE.PCFSoftShadowMap;
         }}
       >
         {orthographic ? (
           <OrthographicCamera key={cameraPreset} makeDefault position={cameraPosition} zoom={0.08} near={1} far={100000} />
         ) : (
-          <PerspectiveCamera key={cameraPreset} makeDefault position={cameraPosition} far={200000} />
+          <PerspectiveCamera key={presentationMode ? renderCameraPreset : cameraPreset} makeDefault position={cameraPosition} far={200000} fov={presentationMode ? 42 : 50} />
         )}
         <OrbitControls
           ref={orbitRef}
           makeDefault
           target={targetVec}
-          minDistance={1000}
+          minDistance={presentationMode ? 600 : 1000}
           maxDistance={100000}
-          enableRotate={cameraPreset !== 'TOP'}
+          enableRotate={presentationMode || cameraPreset !== 'TOP'}
+          enablePan={!presentationMode}
+          maxPolarAngle={presentationMode ? Math.PI * 0.62 : Math.PI}
         />
         
         {/* Lighting */}
-        <ambientLight intensity={presentationMode ? 0.85 : 0.6} />
-        <spotLight 
-          position={[10000, 15000, 10000]} 
-          angle={0.15} 
-          penumbra={1} 
-          intensity={presentationMode ? 2.8 : 2} 
-          castShadow
-          shadow-mapSize={[2048, 2048]}
-          shadow-bias={-0.00025}
-          shadow-normalBias={0.05}
-        />
-        <directionalLight position={[-5000, 10000, 5000]} intensity={presentationMode ? 0.85 : 0.5} />
+        {!presentationMode && (
+          <>
+            <ambientLight intensity={0.6} />
+            <spotLight 
+              position={[10000, 15000, 10000]} 
+              angle={0.15} 
+              penumbra={1} 
+              intensity={2} 
+              castShadow
+              shadow-mapSize={[2048, 2048]}
+              shadow-bias={-0.00025}
+              shadow-normalBias={0.05}
+            />
+            <directionalLight position={[-5000, 10000, 5000]} intensity={0.5} />
+          </>
+        )}
+        {presentationMode && (
+          <>
+            <Environment preset="apartment" background={false} blur={0.45} />
+            <RenderRoomKit
+              bounds={renderBounds}
+              walls={walls}
+              furniture={furniture}
+              roomType={renderRoomType}
+              showCeiling={showCeiling}
+              showDecor={showDecor}
+              showLights={showLights}
+            />
+            <ContactShadows
+              position={[renderBounds.centerX, 8, renderBounds.centerZ]}
+              opacity={0.36}
+              scale={renderBounds.size * 1.4}
+              blur={2.2}
+              far={2600}
+            />
+          </>
+        )}
 
         {/* Environment */}
         {!presentationMode && <Grid 
@@ -157,7 +228,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         />}
 
         {/* Floor Level */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]} receiveShadow>
+        {!presentationMode && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]} receiveShadow>
           <planeGeometry args={[100000, 100000]} />
           <meshStandardMaterial
             color={presentationMode ? "#e7d2a4" : "#f1f5f9"}
@@ -166,7 +237,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
             polygonOffsetFactor={1}
             polygonOffsetUnits={1}
           />
-        </mesh>
+        </mesh>}
 
         {/* Walls */}
         <group>
@@ -176,7 +247,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
               wall={wall}
               depthBiasIndex={wallIndex}
               openings={openings.filter(o => o.wallId === wall.id)}
-              isSelected={selection?.id === wall.id}
+              isSelected={!presentationMode && selection?.id === wall.id}
               onClick={() => {
                 if (activeTool === 'APPLY_FINISH' && activeFinish) {
                   const material = getMaterial(activeFinish);
@@ -195,7 +266,8 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
             <Furniture3D
               key={item.id}
               item={item}
-              isSelected={selection?.id === item.id}
+              isSelected={!presentationMode && selection?.id === item.id}
+              renderMode={presentationMode}
               onClick={() => {
                 if (activeTool === 'APPLY_FINISH' && activeFinish) {
                   const material = getMaterial(activeFinish);
@@ -212,11 +284,21 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         {!presentationMode && <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
           <GizmoViewport axisColors={['#f87171', '#4ade80', '#60a5fa']} labelColor="black" />
         </GizmoHelper>}
+
+        {presentationMode && renderQuality === 'High' && (
+          <EffectComposer multisampling={4}>
+            <SSAO samples={18} radius={0.18} intensity={18} luminanceInfluence={0.72} color={new THREE.Color('black')} />
+            {showLights && <Bloom intensity={0.65} luminanceThreshold={0.55} luminanceSmoothing={0.24} mipmapBlur />}
+            <Vignette eskil={false} offset={0.18} darkness={0.42} />
+          </EffectComposer>
+        )}
       </Canvas>
 
-      <div className="absolute right-5 bottom-16 z-20 w-16 h-16 rounded-full bg-slate-700/80 text-white shadow-xl border border-white/40 flex items-center justify-center text-[11px] font-black">
+      {presentationMode && <RenderToolbar onCapture={captureRender} />}
+
+      {!presentationMode && <div className="absolute right-5 bottom-16 z-20 w-16 h-16 rounded-full bg-slate-700/80 text-white shadow-xl border border-white/40 flex items-center justify-center text-[11px] font-black">
         {cameraPreset === 'SIDE' ? 'RIGHT' : cameraPreset === 'FRONT' ? 'FRONT' : cameraPreset === 'TOP' ? 'TOP' : '3D'}
-      </div>
+      </div>}
 
       {!presentationMode && <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center gap-1 px-3 py-2 bg-white/80 backdrop-blur border-t border-slate-200">
         {(Object.keys(cameraLabels) as CameraPreset[]).map((id) => (
