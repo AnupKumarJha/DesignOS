@@ -98,6 +98,7 @@ export type CameraPreset = 'FREE' | 'TOP' | 'FRONT' | 'SIDE' | 'ISLAND_FRONT';
 export type WorkspaceMode = 'DASHBOARD' | 'DESIGN';
 export type Tool = 'SELECT' | 'WALL' | 'FURNITURE' | 'WINDOW' | 'DOOR' | 'DELETE' | 'APPLY_FINISH';
 export type CatalogCategory = 'ARCHITECTURE' | 'FURNITURE' | 'FINISHES';
+export type RibbonTab = 'Home' | 'View' | 'Insert' | 'Draw' | 'Architecture' | 'Annotate' | 'Render' | 'Outputs';
 
 export type ProjectType = 'Residential' | 'Commercial';
 export type ProjectStatus = 'Design Phase' | 'In Review' | 'In Production' | 'Completed';
@@ -157,6 +158,8 @@ interface AppState {
   materialDrawerCategory: string;
   saveStatus: 'idle' | 'saving' | 'saved';
   catalogWidth: number;
+  ribbonTab: RibbonTab;
+  presentationMode: boolean;
 
   // Actions
   setWorkspaceMode: (mode: WorkspaceMode) => void;
@@ -188,6 +191,8 @@ interface AppState {
   setMaterialDrawerCategory: (category: string) => void;
   setSaveStatus: (status: 'idle' | 'saving' | 'saved') => void;
   setCatalogWidth: (w: number) => void;
+  setRibbonTab: (tab: RibbonTab) => void;
+  setPresentationMode: (enabled: boolean) => void;
 
   // Room actions
   addRoom: (room: Omit<Room, 'id' | 'createdAt'>) => string;
@@ -273,6 +278,8 @@ export const useStore = create<AppState>()(
       materialDrawerCategory: 'Solid Paints',
       saveStatus: 'idle' as const,
       catalogWidth: 300,
+      ribbonTab: 'Home',
+      presentationMode: false,
 
       setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
 
@@ -381,6 +388,8 @@ export const useStore = create<AppState>()(
       setMaterialDrawerCategory: (category) => set({ materialDrawerCategory: category }),
       setSaveStatus: (status) => set({ saveStatus: status }),
       setCatalogWidth: (w) => set({ catalogWidth: Math.max(220, Math.min(600, w)) }),
+      setRibbonTab: (tab) => set({ ribbonTab: tab }),
+      setPresentationMode: (enabled) => set({ presentationMode: enabled }),
 
       // ── Multi-room actions ──────────────────────────────────────────
       addRoom: (room) => {

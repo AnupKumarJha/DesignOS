@@ -40,6 +40,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
     updateWall,
     updateFurniture,
     setCameraPreset,
+    presentationMode,
   } = useStore();
   const walls = allWalls.filter((w) => w.roomId === currentRoomId);
   const furniture = allFurniture.filter((f) => f.roomId === currentRoomId);
@@ -106,7 +107,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
   const orthographic = isOrthographic[cameraPreset];
 
   return (
-    <div className="w-full h-full bg-slate-50 relative">
+    <div className={cn("w-full h-full relative", presentationMode ? "bg-sky-50" : "bg-slate-50")}>
       <Canvas
         shadows
         gl={{
@@ -130,21 +131,21 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         />
         
         {/* Lighting */}
-        <ambientLight intensity={0.6} />
+        <ambientLight intensity={presentationMode ? 0.85 : 0.6} />
         <spotLight 
           position={[10000, 15000, 10000]} 
           angle={0.15} 
           penumbra={1} 
-          intensity={2} 
+          intensity={presentationMode ? 2.8 : 2} 
           castShadow
           shadow-mapSize={[2048, 2048]}
           shadow-bias={-0.00025}
           shadow-normalBias={0.05}
         />
-        <directionalLight position={[-5000, 10000, 5000]} intensity={0.5} />
+        <directionalLight position={[-5000, 10000, 5000]} intensity={presentationMode ? 0.85 : 0.5} />
 
         {/* Environment */}
-        <Grid 
+        {!presentationMode && <Grid 
           infiniteGrid 
           fadeDistance={50000} 
           sectionSize={1000} 
@@ -153,13 +154,13 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
           cellThickness={0.5} 
           sectionColor="#cbd5e1"
           cellColor="#e2e8f0"
-        />
+        />}
 
         {/* Floor Level */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]} receiveShadow>
           <planeGeometry args={[100000, 100000]} />
           <meshStandardMaterial
-            color="#f1f5f9"
+            color={presentationMode ? "#e7d2a4" : "#f1f5f9"}
             roughness={1}
             polygonOffset
             polygonOffsetFactor={1}
@@ -208,12 +209,16 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         </group>
 
         {/* Helpers */}
-        <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
+        {!presentationMode && <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
           <GizmoViewport axisColors={['#f87171', '#4ade80', '#60a5fa']} labelColor="black" />
-        </GizmoHelper>
+        </GizmoHelper>}
       </Canvas>
 
-      <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center gap-1 px-3 py-2 bg-white/80 backdrop-blur border-t border-slate-200">
+      <div className="absolute right-5 bottom-16 z-20 w-16 h-16 rounded-full bg-slate-700/80 text-white shadow-xl border border-white/40 flex items-center justify-center text-[11px] font-black">
+        {cameraPreset === 'SIDE' ? 'RIGHT' : cameraPreset === 'FRONT' ? 'FRONT' : cameraPreset === 'TOP' ? 'TOP' : '3D'}
+      </div>
+
+      {!presentationMode && <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center gap-1 px-3 py-2 bg-white/80 backdrop-blur border-t border-slate-200">
         {(Object.keys(cameraLabels) as CameraPreset[]).map((id) => (
           <button
             key={id}
@@ -242,7 +247,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         >
           Fit View
         </button>
-      </div>
+      </div>}
     </div>
   );
 };

@@ -116,7 +116,7 @@ export const ProjectHub: React.FC = () => {
       ...meta,
       id: crypto.randomUUID(),
       projectId: `PN-${Math.floor(10000 + Math.random() * 90000)}`,
-      clientDetails: '',
+      clientDetails: meta.clientDetails ?? '',
       status: 'Design Phase' as const,
       updatedAt: new Date().toISOString(),
     };
@@ -136,9 +136,9 @@ export const ProjectHub: React.FC = () => {
       project: projectMeta,
       rooms: [starterRoom],
       currentRoomId: starterRoom.id,
-      walls: [],
+      walls: buildTemplateWalls(starterRoom.id, projectMeta.room),
       openings: [],
-      furniture: [],
+      furniture: buildTemplateFurniture(starterRoom.id, projectMeta.room),
       deletedAt: null,
     };
     const next = upsertProject(snapshot);
@@ -291,6 +291,41 @@ export const ProjectHub: React.FC = () => {
       />
     </div>
   );
+};
+
+const buildTemplateWalls = (roomId: string, room: string) => {
+  if (room === 'Other') return [];
+  const width = room.includes('Living') ? 5200 : room.includes('Bedroom') ? 4200 : 3600;
+  const depth = room.includes('Living') ? 4200 : room.includes('Bedroom') ? 3600 : 3000;
+  return [
+    { id: crypto.randomUUID(), roomId, start: { x: 0, y: 0 }, end: { x: width, y: 0 }, thickness: 150, height: 2700 },
+    { id: crypto.randomUUID(), roomId, start: { x: width, y: 0 }, end: { x: width, y: depth }, thickness: 150, height: 2700 },
+    { id: crypto.randomUUID(), roomId, start: { x: width, y: depth }, end: { x: 0, y: depth }, thickness: 150, height: 2700 },
+    { id: crypto.randomUUID(), roomId, start: { x: 0, y: depth }, end: { x: 0, y: 0 }, thickness: 150, height: 2700 },
+  ];
+};
+
+const buildTemplateFurniture = (roomId: string, room: string) => {
+  if (room.includes('Kitchen')) {
+    return [
+      { id: crypto.randomUUID(), roomId, type: 'CABINET_BASE' as const, position: { x: 900, y: 250 }, rotation: 0, width: 900, depth: 560, height: 720, catalogItemId: 'cabinet_base', variantId: 'base_900', shutterCount: 2, hasHandle: true, skirtingHeight: 100 },
+      { id: crypto.randomUUID(), roomId, type: 'SINK_UNIT' as const, position: { x: 1900, y: 250 }, rotation: 0, width: 900, depth: 560, height: 720, catalogItemId: 'sink_unit', variantId: 'sink_900', shutterCount: 2, hasHandle: true, skirtingHeight: 100 },
+      { id: crypto.randomUUID(), roomId, type: 'CABINET_WALL' as const, position: { x: 1400, y: 250 }, rotation: 0, width: 900, depth: 320, height: 720, catalogItemId: 'cabinet_wall', variantId: 'wall_900', shutterCount: 2, hasHandle: true },
+    ];
+  }
+  if (room.includes('Bedroom')) {
+    return [
+      { id: crypto.randomUUID(), roomId, type: 'BED' as const, position: { x: 2100, y: 2100 }, rotation: 0, width: 1500, depth: 2000, height: 400, catalogItemId: 'bed_queen', variantId: 'bed_queen_1500' },
+      { id: crypto.randomUUID(), roomId, type: 'WARDROBE' as const, position: { x: 700, y: 250 }, rotation: 0, width: 1200, depth: 600, height: 2100, catalogItemId: 'wardrobe', variantId: 'wardrobe_1200', shutterCount: 2, hasHandle: true, skirtingHeight: 100 },
+    ];
+  }
+  if (room.includes('Living')) {
+    return [
+      { id: crypto.randomUUID(), roomId, type: 'SOFA' as const, position: { x: 2200, y: 3100 }, rotation: 0, width: 2200, depth: 900, height: 850, catalogItemId: 'sofa_3seater', variantId: 'sofa_3_2200' },
+      { id: crypto.randomUUID(), roomId, type: 'TV_UNIT' as const, position: { x: 2200, y: 300 }, rotation: 0, width: 1800, depth: 450, height: 500, catalogItemId: 'tv_unit_low', variantId: 'tv_1800' },
+    ];
+  }
+  return [];
 };
 
 interface ProjectCardProps {

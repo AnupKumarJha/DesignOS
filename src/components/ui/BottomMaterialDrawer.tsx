@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Filter, Search, Sparkles, X } from 'lucide-react';
+import { Filter, Minus, Search, Sparkles, X } from 'lucide-react';
 import { useStore, Wall, Furniture } from '../../store/useStore';
 import { materialCatalog, MaterialItem, FinishType } from '../../data/catalog';
 import { getPatternStyle } from '../../lib/materialPattern';
 import { cn } from '../../lib/utils';
+import { materialGroupsForInfurniaTabs } from '../../lib/outputs';
 
 const ALL_FINISH_TYPES: FinishType[] = [
   'Matte',
@@ -33,10 +34,7 @@ export const BottomMaterialDrawer: React.FC = () => {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
 
-  const allCategories = useMemo(
-    () => Array.from(new Set(materialCatalog.map((m) => m.group))),
-    [],
-  );
+  const allCategories = useMemo(() => materialGroupsForInfurniaTabs(), []);
 
   const itemsInCategory = useMemo(
     () => materialCatalog.filter((m) => m.group === materialDrawerCategory),
@@ -150,6 +148,13 @@ export const BottomMaterialDrawer: React.FC = () => {
               title="Filters"
             >
               <Filter size={14} />
+            </button>
+            <button
+              onClick={() => setMaterialDrawerOpen(false)}
+              className="p-2 hover:bg-slate-100 rounded-xl text-slate-400"
+              title="Minimize"
+            >
+              <Minus size={16} />
             </button>
             <button
               onClick={() => setMaterialDrawerOpen(false)}

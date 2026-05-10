@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useStore as useZustandStore } from 'zustand';
 import { useStore } from './store/useStore';
 import { FloorPlan } from './components/viewport-2d/FloorPlan';
 import { Scene3D } from './components/viewport-3d/Scene3D';
@@ -7,6 +8,10 @@ import { CatalogSidebar } from './components/ui/CatalogSidebar';
 import { PropertiesSidebar } from './components/ui/PropertiesSidebar';
 import { ProjectHub } from './components/ui/ProjectHub';
 import { BottomMaterialDrawer } from './components/ui/BottomMaterialDrawer';
+import { InfurniaRibbon } from './components/ui/InfurniaRibbon';
+import { ViewportNavigation } from './components/ui/ViewportNavigation';
+import { OutputsCenter } from './components/ui/OutputsCenter';
+import { CatalogAdminModal } from './components/ui/CatalogAdminModal';
 import { useKeyboard } from './hooks/useKeyboard';
 import { cn } from './lib/utils';
 import {
@@ -17,10 +22,24 @@ import {
 } from './lib/persistence';
 
 export default function App() {
-  const { viewMode, selection, workspaceMode, cameraPreset } = useStore();
+  const { viewMode, selection, workspaceMode, cameraPreset, presentationMode } = useStore();
+  const { undo, redo } = useZustandStore(useStore.temporal, (state: any) => state);
+  const [outputsOpen, setOutputsOpen] = React.useState(false);
+  const [catalogAdminOpen, setCatalogAdminOpen] = React.useState(false);
 
   // Register keyboard shortcuts
   useKeyboard();
+
+  useEffect(() => {
+    const onUndo = () => undo();
+    const onRedo = () => redo();
+    window.addEventListener('design-os:undo', onUndo);
+    window.addEventListener('design-os:redo', onRedo);
+    return () => {
+      window.removeEventListener('design-os:undo', onUndo);
+      window.removeEventListener('design-os:redo', onRedo);
+    };
+  }, [undo, redo]);
 
   // Bootstrap: load IndexedDB into Zustand cache, restore last project
   useEffect(() => {
@@ -93,9 +112,17 @@ export default function App() {
     <div className="fixed inset-0 w-full h-screen bg-slate-100 flex flex-col font-sans overflow-hidden select-none">
       {workspaceMode === 'DASHBOARD' && <ProjectHub />}
       <TopBar />
+      {workspaceMode === 'DESIGN' && !presentationMode && (
+        <InfurniaRibbon
+          onOpenOutputs={() => setOutputsOpen(true)}
+          onOpenCatalogAdmin={() => setCatalogAdminOpen(true)}
+        />
+      )}
+      <OutputsCenter open={outputsOpen} onClose={() => setOutputsOpen(false)} />
+      <CatalogAdminModal open={catalogAdminOpen} onClose={() => setCatalogAdminOpen(false)} />
 
       <main className="flex-1 flex overflow-hidden relative">
-        <CatalogSidebar />
+        {!presentationMode && <CatalogSidebar />}
         
         <div className={cn(
           "flex-1 relative bg-white overflow-hidden",
@@ -128,23 +155,25 @@ export default function App() {
             </>
           )}
 
+          {workspaceMode === 'DESIGN' && <ViewportNavigation />}
+
           {/* Canvas Overlay Labels */}
-          <div className="absolute top-4 left-4 z-20 pointer-events-none flex flex-col gap-1">
+          {!presentationMode && <div className="absolute top-4 left-[276px] z-20 pointer-events-none flex flex-col gap-1">
              <div className="flex items-center gap-2 bg-white/60 backdrop-blur px-2 py-0.5 rounded border border-white/40 shadow-sm">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Viewport</span>
                 <span className="text-[10px] font-bold text-slate-800 uppercase">{viewMode} Mode</span>
              </div>
              <div className="text-[9px] text-slate-400 font-medium px-2">Project Units: 1mm · Camera: {cameraPreset}</div>
-          </div>
+          </div>}
         </div>
 
-        <PropertiesSidebar />
+        {!presentationMode && <PropertiesSidebar />}
       </main>
 
-      <BottomMaterialDrawer />
+      {!presentationMode && <BottomMaterialDrawer />}
 
       {/* Floating Status Bar */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] pointer-events-none flex items-center gap-2">
+      {!presentationMode && <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-[60] pointer-events-none flex items-center gap-2">
         <div className="bg-slate-900/90 text-white backdrop-blur-md px-4 py-2 rounded-full border border-slate-700 shadow-2xl flex items-center gap-6">
            <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
@@ -155,7 +184,7 @@ export default function App() {
              {selection ? `Selected: ${selection.type.toUpperCase()}` : 'Select a component to edit'}
            </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

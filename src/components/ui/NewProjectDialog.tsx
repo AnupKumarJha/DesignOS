@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, FolderPlus } from 'lucide-react';
+import { X, FolderPlus, BedDouble, CookingPot, Home, Image, Sofa } from 'lucide-react';
 import { ProjectMeta, ProjectType } from '../../store/useStore';
 import { cn } from '../../lib/utils';
 
@@ -40,6 +40,7 @@ export const NewProjectDialog: React.FC<NewProjectDialogProps> = ({ open, onClos
   const [building, setBuilding] = useState('Building 1');
   const [floor, setFloor] = useState('Ground Floor');
   const [room, setRoom] = useState('Kitchen');
+  const [template, setTemplate] = useState('Kitchen Starter');
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export const NewProjectDialog: React.FC<NewProjectDialogProps> = ({ open, onClos
       setBuilding('Building 1');
       setFloor('Ground Floor');
       setRoom('Kitchen');
+      setTemplate('Kitchen Starter');
       setTimeout(() => nameInputRef.current?.focus(), 50);
     }
   }, [open]);
@@ -77,8 +79,17 @@ export const NewProjectDialog: React.FC<NewProjectDialogProps> = ({ open, onClos
       building: building.trim() || 'Building 1',
       floor,
       room,
+      clientDetails: template,
     });
   };
+
+  const templates = [
+    { id: 'Kitchen Starter', label: 'Kitchen', icon: CookingPot, room: 'Kitchen' },
+    { id: 'Bedroom Starter', label: 'Bedroom', icon: BedDouble, room: 'Bedroom' },
+    { id: 'Living Starter', label: 'Living', icon: Sofa, room: 'Living Room' },
+    { id: 'Empty Room', label: 'Empty Room', icon: Home, room: 'Other' },
+    { id: 'Imported Plan', label: 'Imported Plan', icon: Image, room: 'Other' },
+  ];
 
   return (
     <div
@@ -109,6 +120,30 @@ export const NewProjectDialog: React.FC<NewProjectDialogProps> = ({ open, onClos
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <Field label="Template Selection">
+            <div className="grid grid-cols-5 gap-2">
+              {templates.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setTemplate(item.id);
+                    setRoom(item.room);
+                  }}
+                  className={cn(
+                    'h-20 rounded-xl border-2 flex flex-col items-center justify-center gap-1 text-[10px] font-black transition-all',
+                    template === item.id
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300',
+                  )}
+                >
+                  <item.icon size={18} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+
           <Field label="Project Name" required>
             <input
               ref={nameInputRef}

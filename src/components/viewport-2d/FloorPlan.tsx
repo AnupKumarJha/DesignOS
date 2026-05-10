@@ -81,6 +81,58 @@ export const FloorPlan: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
+  useEffect(() => {
+    const fitBounds = (points: Point[]) => {
+      if (points.length === 0 || !containerRef.current) return;
+      const minX = Math.min(...points.map((p) => p.x));
+      const maxX = Math.max(...points.map((p) => p.x));
+      const minY = Math.min(...points.map((p) => p.y));
+      const maxY = Math.max(...points.map((p) => p.y));
+      const width = Math.max(maxX - minX, 1000);
+      const height = Math.max(maxY - minY, 1000);
+      const nextScale = Math.min(dimensions.width / (width + 800), dimensions.height / (height + 800), 0.9);
+      setScale(Math.max(0.08, nextScale));
+      setOffset({
+        x: dimensions.width / 2 - ((minX + maxX) / 2) * Math.max(0.08, nextScale),
+        y: dimensions.height / 2 - ((minY + maxY) / 2) * Math.max(0.08, nextScale),
+      });
+    };
+
+    const allPoints = () => [
+      ...walls.flatMap((w) => [w.start, w.end]),
+      ...furniture.flatMap((f) => [
+        { x: f.position.x - f.width / 2, y: f.position.y - f.depth / 2 },
+        { x: f.position.x + f.width / 2, y: f.position.y + f.depth / 2 },
+      ]),
+    ];
+
+    const onFitAll = () => fitBounds(allPoints());
+    const onFitSelection = () => {
+      if (!selection) return onFitAll();
+      if (selection.type === 'wall') {
+        const wall = walls.find((w) => w.id === selection.id);
+        if (wall) fitBounds([wall.start, wall.end]);
+      } else if (selection.type === 'furniture') {
+        const item = furniture.find((f) => f.id === selection.id);
+        if (item) {
+          fitBounds([
+            { x: item.position.x - item.width / 2, y: item.position.y - item.depth / 2 },
+            { x: item.position.x + item.width / 2, y: item.position.y + item.depth / 2 },
+          ]);
+        }
+      } else {
+        onFitAll();
+      }
+    };
+
+    window.addEventListener('design-os:fit-all', onFitAll);
+    window.addEventListener('design-os:fit-selection', onFitSelection);
+    return () => {
+      window.removeEventListener('design-os:fit-all', onFitAll);
+      window.removeEventListener('design-os:fit-selection', onFitSelection);
+    };
+  }, [dimensions.height, dimensions.width, furniture, selection, walls]);
+
   const getFurnitureDraft = (position: Point): Furniture => {
     const catalogItem = getCatalogItem(selectedCatalogItem) || getCatalogItem('cabinet_base')!;
     const variant = getVariant(catalogItem.id, catalogItem.defaultVariantId)!;

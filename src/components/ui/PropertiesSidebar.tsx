@@ -472,6 +472,46 @@ export const PropertiesSidebar: React.FC = () => {
           </div>
         )}
 
+        {isWall && (
+          <Section title="Wall Section" icon={Layers}>
+            <div className="space-y-3 text-[11px] text-slate-600">
+              <PanelRow label="Wall Profile" value="Default Profile" />
+              <PanelRow label="Tiling & Cutting Tool" value="Ready" />
+              <PanelRow label="Wall Texture" value={currentMaterial?.group ?? 'Wall Default'} />
+              <button
+                onClick={() => {
+                  setMaterialDrawerCategory(currentMaterial?.group ?? 'Solid Paints');
+                  setMaterialDrawerOpen(true);
+                }}
+                className="w-full rounded-xl bg-slate-900 text-white py-2.5 text-[11px] font-black"
+              >
+                Open Wall Texture Tray
+              </button>
+            </div>
+          </Section>
+        )}
+
+        {isFurniture && (
+          <Section title="Cabinet Structure" icon={Sparkles}>
+            <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden">
+              {[
+                ['Carcass', `${(item as Furniture).width}W × ${(item as Furniture).depth}D`],
+                ['Shutters / Drawers', `${(item as Furniture).shutterCount ?? 0} shutters · ${(item as Furniture).drawerCount ?? 0} drawers`],
+                ['Skirting Options', `${(item as Furniture).skirtingHeight ?? 0}mm`],
+                ['End Panel', 'Left / right panel ready'],
+                ['Add Custom Panel', 'Use for fillers, fascias, and side panels'],
+                ['Automation History', 'Local design actions'],
+                ['Publish to Catalog', 'Save configured SKU later'],
+              ].map(([label, value]) => (
+                <button key={label} className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50">
+                  <span className="text-[11px] font-bold text-slate-700">{label}</span>
+                  <span className="text-[10px] text-slate-400 truncate max-w-[130px]">{value}</span>
+                </button>
+              ))}
+            </div>
+          </Section>
+        )}
+
         {/* Danger Zone */}
         <div className="p-6">
           <button
@@ -525,6 +565,13 @@ const LabeledInput: React.FC<{ label: string; value: number; onChange: (v: numbe
       {label}
     </label>
     <Input value={value} onChange={onChange} />
+  </div>
+);
+
+const PanelRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+    <span className="font-bold text-slate-600">{label}</span>
+    <span className="text-slate-400 font-semibold truncate max-w-[130px]">{value}</span>
   </div>
 );
 

@@ -9,4 +9,11 @@ coverage/
 
 # Local reference screenshots (not part of source)
 infurnia-image-referneces/
+Renders/
 
+# Local/heavy 3D assets should be curated before committing
+*.glb
+*.gltf
+*.fbx
+*.obj
+*.skp
