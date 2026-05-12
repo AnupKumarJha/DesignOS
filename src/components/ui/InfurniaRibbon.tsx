@@ -7,6 +7,7 @@ import {
   FileText,
   Grid2X2,
   Home,
+  Image,
   Lightbulb,
   Maximize2,
   MessageSquare,
@@ -170,6 +171,26 @@ export const InfurniaRibbon: React.FC<InfurniaRibbonProps> = ({
           </button>
         ))}
         <div className="ml-auto flex items-center gap-1 rounded-lg bg-slate-100 p-0.5 border border-slate-200">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('design-os:open-reference-plan'))}
+            className="px-3 py-1.5 rounded-md text-[11px] font-black text-slate-600 hover:bg-white flex items-center gap-1.5"
+            title="Open reference plan tools"
+          >
+            <Image size={12} />
+            Ref Plan
+          </button>
+          <button
+            onClick={() => {
+              setCatalogOpen(true);
+              setActiveCategory('FURNITURE');
+              onOpenCatalogAdmin();
+            }}
+            className="px-3 py-1.5 rounded-md text-[11px] font-black text-slate-600 hover:bg-white flex items-center gap-1.5"
+            title="Open catalogue admin"
+          >
+            <TableProperties size={12} />
+            Catalogue
+          </button>
           <button onClick={() => setViewMode('2D')} className="px-3 py-1.5 rounded-md bg-white text-[11px] font-black text-slate-700">Floorplan</button>
           <button onClick={() => { setViewMode('3D'); setCameraPreset('FREE'); }} className="px-3 py-1.5 rounded-md text-[11px] font-black text-slate-600 hover:bg-white">3D</button>
           <button onClick={() => setViewMode('SPLIT')} className="px-3 py-1.5 rounded-md text-[11px] font-black text-slate-600 hover:bg-white">Split</button>

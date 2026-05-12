@@ -47,6 +47,7 @@ export const CatalogSidebar: React.FC = () => {
     setSelectedCatalogItem,
     catalogWidth,
     setCatalogWidth,
+    customCatalogItems,
   } = useStore();
 
   const [search, setSearch] = useState('');
@@ -92,10 +93,19 @@ export const CatalogSidebar: React.FC = () => {
     { id: 'window', name: 'Window', icon: Grid2X2, tool: 'WINDOW', category: 'ARCHITECTURE' },
   ];
 
+  const publishedCustomCatalog = useMemo(
+    () => customCatalogItems.filter((item) => (item.importStatus ?? 'published') === 'published'),
+    [customCatalogItems],
+  );
+  const mergedFurnitureCatalog = useMemo(
+    () => [...furnitureCatalog, ...publishedCustomCatalog],
+    [publishedCustomCatalog],
+  );
+
   const items: CatalogItem[] = useMemo(
     () => [
       ...architectureItems,
-      ...furnitureCatalog.map((item) => ({
+      ...mergedFurnitureCatalog.map((item) => ({
         id: item.id,
         name: item.name,
         icon: Box,
@@ -110,7 +120,7 @@ export const CatalogSidebar: React.FC = () => {
         category: 'FINISHES' as CatalogCategory,
       })),
     ],
-    [],
+    [mergedFurnitureCatalog],
   );
 
   const filteredAndGrouped = useMemo(() => {
@@ -122,7 +132,7 @@ export const CatalogSidebar: React.FC = () => {
       if (needle) {
         let haystack = item.name.toLowerCase();
         if (item.category === 'FURNITURE') {
-          const f = furnitureCatalog.find((c) => c.id === item.id);
+          const f = mergedFurnitureCatalog.find((c) => c.id === item.id);
           if (f) {
             haystack += ` ${f.brand ?? ''} ${f.sku ?? ''} ${(f.tags ?? []).join(' ')} ${f.group}`.toLowerCase();
           }
@@ -137,7 +147,7 @@ export const CatalogSidebar: React.FC = () => {
 
       // Room filter (furniture only)
       if (item.category === 'FURNITURE' && roomFilter !== 'All') {
-        const f = furnitureCatalog.find((c) => c.id === item.id);
+        const f = mergedFurnitureCatalog.find((c) => c.id === item.id);
         const rooms = f?.roomTypes;
         if (rooms && !rooms.includes(roomFilter)) return false;
       }
@@ -148,7 +158,7 @@ export const CatalogSidebar: React.FC = () => {
     const grouped = matches.reduce<Record<string, CatalogItem[]>>((acc, item) => {
       const group =
         activeCategory === 'FURNITURE'
-          ? furnitureCatalog.find((c) => c.id === item.id)?.group || 'Furniture'
+          ? mergedFurnitureCatalog.find((c) => c.id === item.id)?.group || 'Furniture'
           : activeCategory === 'FINISHES'
           ? materialCatalog.find((m) => m.id === item.id)?.group || 'Finishes'
           : 'Architecture';
@@ -156,7 +166,7 @@ export const CatalogSidebar: React.FC = () => {
       return acc;
     }, {});
     return grouped;
-  }, [items, activeCategory, search, roomFilter]);
+  }, [items, activeCategory, search, roomFilter, mergedFurnitureCatalog]);
 
   const totalMatches = Object.values(filteredAndGrouped).reduce(
     (sum, arr) => sum + arr.length,
@@ -279,7 +289,7 @@ export const CatalogSidebar: React.FC = () => {
                       {groupItems.map((item) => {
                         const f =
                           item.category === 'FURNITURE'
-                            ? furnitureCatalog.find((c) => c.id === item.id)
+                            ? mergedFurnitureCatalog.find((c) => c.id === item.id)
                             : undefined;
                         const isSelected =
                           item.category === 'ARCHITECTURE'
@@ -309,8 +319,16 @@ export const CatalogSidebar: React.FC = () => {
                               isSelected && 'border-blue-500 ring-2 ring-blue-100',
                             )}
                           >
-                            <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform mb-2">
-                              <item.icon size={24} className="text-slate-600" />
+                            <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform mb-2 overflow-hidden">
+                              {f?.thumbnailUrl || f?.sourceThumbnailUrl ? (
+                                <img
+                                  src={f.thumbnailUrl || f.sourceThumbnailUrl}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <item.icon size={24} className="text-slate-600" />
+                              )}
                             </div>
                             <span className="text-[11px] font-bold text-slate-700 line-clamp-1 w-full text-center">
                               {item.name}

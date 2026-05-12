@@ -186,10 +186,10 @@ export function generateBOQByRoom(
 
       lines.push({
         id: item.id,
-        name: catalogItem?.name ?? item.type.replace('_', ' '),
-        detail: `${item.width}W × ${item.depth}D × ${item.height}H${variant ? ` · ${variant.label.split(' · ').slice(-1)[0] === variant.label ? '' : variant.label.split(' · ').slice(-1)[0]}` : ''}${material ? ` · finish: ${material.name}` : ''}`,
-        brand: catalogItem?.brand,
-        sku: catalogItem?.sku,
+        name: item.catalogName ?? catalogItem?.name ?? item.type.replace('_', ' '),
+        detail: `${item.width}W × ${item.depth}D × ${item.height}H${item.catalogVariantLabel ? ` · ${item.catalogVariantLabel}` : variant ? ` · ${variant.label.split(' · ').slice(-1)[0] === variant.label ? '' : variant.label.split(' · ').slice(-1)[0]}` : ''}${material ? ` · finish: ${material.name}` : ''}`,
+        brand: item.catalogBrand ?? catalogItem?.brand,
+        sku: item.catalogSku ?? catalogItem?.sku,
         category: 'Furniture',
         quantity: 1,
         unit: 'unit',

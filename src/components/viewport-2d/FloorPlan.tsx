@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Stage, Layer, Group, Line, Text, Circle } from 'react-konva';
 import { useStore, Wall, Point, Furniture } from '../../store/useStore';
 import { Grid } from './Grid';
@@ -33,11 +33,13 @@ export const FloorPlan: React.FC = () => {
     setSelection,
     removeWall,
     removeFurniture,
-    removeOpening
+    removeOpening,
+    customCatalogItems,
   } = useStore();
   const currentRoom = rooms.find((r) => r.id === currentRoomId);
   const backgroundPlan = currentRoom?.backgroundPlan ?? null;
   const [calibrationMode, setCalibrationMode] = useState(false);
+  const [referencePlanOpen, setReferencePlanOpen] = useState(false);
   const [calibrationPoints, setCalibrationPoints] = useState<Point[]>([]);
 
   // Filter to current room — other rooms exist in the snapshot but are not
@@ -45,6 +47,12 @@ export const FloorPlan: React.FC = () => {
   const walls = allWalls.filter((w) => w.roomId === currentRoomId);
   const openings = allOpenings.filter((o) => o.roomId === currentRoomId);
   const furniture = allFurniture.filter((f) => f.roomId === currentRoomId);
+  const mergedFurnitureCatalog = useMemo(
+    () => [
+      ...customCatalogItems.filter((item) => (item.importStatus ?? 'published') === 'published'),
+    ],
+    [customCatalogItems],
+  );
   
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [scale, setScale] = useState(0.2);
@@ -67,6 +75,12 @@ export const FloorPlan: React.FC = () => {
     });
     resizeObserver.observe(element);
     return () => resizeObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const openReferencePlan = () => setReferencePlanOpen(true);
+    window.addEventListener('design-os:open-reference-plan', openReferencePlan);
+    return () => window.removeEventListener('design-os:open-reference-plan', openReferencePlan);
   }, []);
 
   useEffect(() => {
@@ -134,8 +148,14 @@ export const FloorPlan: React.FC = () => {
   }, [dimensions.height, dimensions.width, furniture, selection, walls]);
 
   const getFurnitureDraft = (position: Point): Furniture => {
-    const catalogItem = getCatalogItem(selectedCatalogItem) || getCatalogItem('cabinet_base')!;
-    const variant = getVariant(catalogItem.id, catalogItem.defaultVariantId)!;
+    const catalogItem =
+      getCatalogItem(selectedCatalogItem) ||
+      mergedFurnitureCatalog.find((item) => item.id === selectedCatalogItem) ||
+      getCatalogItem('cabinet_base')!;
+    const variant =
+      getVariant(catalogItem.id, catalogItem.defaultVariantId) ||
+      catalogItem.variants.find((entry) => entry.id === catalogItem.defaultVariantId) ||
+      catalogItem.variants[0];
     let snappedPos = snapToGrid(position, 50);
     let rotation = 0;
     
@@ -167,6 +187,15 @@ export const FloorPlan: React.FC = () => {
       drawerCount: variant.drawerCount,
       hasHandle: catalogItem.hasHandle,
       skirtingHeight: catalogItem.skirtingHeight,
+      catalogName: catalogItem.name,
+      catalogBrand: catalogItem.brand,
+      catalogSku: catalogItem.sku,
+      catalogVariantLabel: variant.label,
+      modelAssetId: catalogItem.modelAssetId,
+      thumbnailAssetId: catalogItem.thumbnailAssetId,
+      assetFormat: catalogItem.assetFormat,
+      sourceUrl: catalogItem.sourceUrl,
+      licenseNote: catalogItem.licenseNote,
     };
   };
 
@@ -337,6 +366,7 @@ export const FloorPlan: React.FC = () => {
   };
 
   const startCalibration = () => {
+    setReferencePlanOpen(true);
     setCalibrationMode(true);
     setCalibrationPoints([]);
   };
@@ -576,6 +606,8 @@ export const FloorPlan: React.FC = () => {
       </div>
 
       <FloorPlanImportPanel
+        open={referencePlanOpen}
+        onClose={() => setReferencePlanOpen(false)}
         calibrationMode={calibrationMode}
         calibrationPointsCount={calibrationPoints.length}
         onStartCalibration={startCalibration}

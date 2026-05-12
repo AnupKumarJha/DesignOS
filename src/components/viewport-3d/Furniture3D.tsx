@@ -1,10 +1,11 @@
-import React, { Suspense, useMemo } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { RoundedBox, useGLTF } from '@react-three/drei';
 import { Furniture } from '../../store/useStore';
 import { COLORS } from '../../lib/constants';
 import { getCatalogItem, getMaterial } from '../../data/catalog';
 import { getMaterialTexture, getFinishProps } from '../../lib/materialTexture';
+import { getCatalogAsset } from '../../lib/db';
 
 interface Furniture3DProps {
   item: Furniture;
@@ -51,7 +52,7 @@ export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, rend
     }
   }
 
-  if (renderMode) {
+  if (renderMode || item.modelAssetId) {
     return (
       <RenderFurniture
         item={item}
@@ -182,6 +183,35 @@ const RenderFurniture: React.FC<RenderFurnitureProps> = ({
   onClick,
 }) => {
   const catalogItem = getCatalogItem(item.catalogItemId);
+  const [uploadedModelUrl, setUploadedModelUrl] = useState<string | null>(null);
+  const modelAssetId = item.modelAssetId || catalogItem?.modelAssetId;
+  useEffect(() => {
+    let revokedUrl: string | null = null;
+    let cancelled = false;
+    if (!modelAssetId) {
+      setUploadedModelUrl(null);
+      return undefined;
+    }
+    getCatalogAsset(modelAssetId)
+      .then((asset) => {
+        if (cancelled) return;
+        if (!asset) {
+          setUploadedModelUrl(null);
+          return;
+        }
+        revokedUrl = URL.createObjectURL(asset.blob);
+        setUploadedModelUrl(revokedUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setUploadedModelUrl(null);
+      });
+    return () => {
+      cancelled = true;
+      if (revokedUrl) URL.revokeObjectURL(revokedUrl);
+    };
+  }, [modelAssetId]);
+
+  const modelUrl = uploadedModelUrl || catalogItem?.modelUrl;
   const materialProps = {
     color,
     map: texture,
@@ -200,9 +230,9 @@ const RenderFurniture: React.FC<RenderFurnitureProps> = ({
         onClick?.();
       }}
     >
-      {catalogItem?.modelUrl ? (
+      {modelUrl ? (
         <Suspense fallback={<ProceduralFurniture item={item} materialProps={materialProps} />}>
-          <ModelAsset item={item} modelUrl={catalogItem.modelUrl} />
+          <ModelAsset item={item} modelUrl={modelUrl} />
         </Suspense>
       ) : (
         <ProceduralFurniture item={item} materialProps={materialProps} />

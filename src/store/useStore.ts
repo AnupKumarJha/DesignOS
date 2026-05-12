@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { temporal } from 'zundo';
+import type { FurnitureCatalogItem } from '../data/catalog';
 
 export interface Point {
   x: number;
@@ -71,6 +72,15 @@ export interface Furniture {
   drawerCount?: number;
   hasHandle?: boolean;
   skirtingHeight?: number;
+  catalogName?: string;
+  catalogBrand?: string;
+  catalogSku?: string;
+  catalogVariantLabel?: string;
+  modelAssetId?: string;
+  thumbnailAssetId?: string;
+  assetFormat?: 'glb' | 'gltf';
+  sourceUrl?: string;
+  licenseNote?: string;
 }
 
 export interface BackgroundPlan {
@@ -138,6 +148,7 @@ interface AppState {
   workspaceMode: WorkspaceMode;
   project: ProjectMeta;
   savedProjects: DesignSnapshot[];
+  customCatalogItems: FurnitureCatalogItem[];
 
   // Multi-room hierarchy
   rooms: Room[];
@@ -175,6 +186,7 @@ interface AppState {
   setWorkspaceMode: (mode: WorkspaceMode) => void;
   updateProject: (updates: Partial<ProjectMeta>) => void;
   setSavedProjects: (projects: DesignSnapshot[]) => void;
+  setCustomCatalogItems: (items: FurnitureCatalogItem[]) => void;
   loadSnapshot: (snapshot: DesignSnapshot) => void;
   getSnapshot: () => DesignSnapshot;
   addWall: (wall: Wall) => void;
@@ -278,6 +290,7 @@ export const useStore = create<AppState>()(
       workspaceMode: 'DASHBOARD',
       project: initialProject,
       savedProjects: [],
+      customCatalogItems: [],
       rooms: [initialRoom],
       currentRoomId: initialRoom.id,
       walls: [],
@@ -312,6 +325,7 @@ export const useStore = create<AppState>()(
       })),
 
       setSavedProjects: (projects) => set({ savedProjects: projects }),
+      setCustomCatalogItems: (items) => set({ customCatalogItems: items }),
 
       loadSnapshot: (snapshot) => {
         const migrated = migrateSnapshot(snapshot);

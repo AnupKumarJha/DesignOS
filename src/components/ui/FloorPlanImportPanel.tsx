@@ -4,6 +4,8 @@ import { useStore } from '../../store/useStore';
 import { cn } from '../../lib/utils';
 
 interface FloorPlanImportPanelProps {
+  open: boolean;
+  onClose: () => void;
   /** Calibration mode is owned by FloorPlan (it captures clicks). This panel
    * just toggles it and shows guidance. */
   calibrationMode: boolean;
@@ -19,6 +21,8 @@ interface FloorPlanImportPanelProps {
  * scale, and remove the plan.
  */
 export const FloorPlanImportPanel: React.FC<FloorPlanImportPanelProps> = ({
+  open,
+  onClose,
   calibrationMode,
   onStartCalibration,
   onCancelCalibration,
@@ -32,6 +36,7 @@ export const FloorPlanImportPanel: React.FC<FloorPlanImportPanelProps> = ({
   const [calibInput, setCalibInput] = useState('');
 
   if (!room) return null;
+  if (!open && !calibrationMode) return null;
 
   const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -82,12 +87,20 @@ export const FloorPlanImportPanel: React.FC<FloorPlanImportPanelProps> = ({
       : 'enter';
 
   return (
-    <div className="absolute bottom-20 right-4 z-30 w-72 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
+    <div className="absolute top-4 right-4 z-30 w-80 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
         <ImageIcon size={14} className="text-blue-600" />
         <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">
           Reference Plan
         </h3>
+        <button
+          onClick={onClose}
+          className="ml-auto p-1 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          title="Close reference plan"
+          aria-label="Close reference plan"
+        >
+          <XIcon size={14} />
+        </button>
       </div>
 
       {!plan ? (

@@ -9,12 +9,15 @@
  * All public functions are async (Promise<T>).
  */
 
+import type { FurnitureCatalogItem } from '../data/catalog';
 import type { DesignSnapshot } from '../store/useStore';
 
 const DB_NAME = 'namaste-design-os';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const PROJECTS_STORE = 'projects';
 const META_STORE = 'meta';
+const CUSTOM_CATALOG_STORE = 'customCatalogItems';
+const CATALOG_ASSETS_STORE = 'catalogAssets';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -30,6 +33,12 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE);
       }
+      if (!db.objectStoreNames.contains(CUSTOM_CATALOG_STORE)) {
+        db.createObjectStore(CUSTOM_CATALOG_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(CATALOG_ASSETS_STORE)) {
+        db.createObjectStore(CATALOG_ASSETS_STORE, { keyPath: 'id' });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -41,6 +50,14 @@ function openDB(): Promise<IDBDatabase> {
 interface ProjectRow {
   id: string;
   snapshot: DesignSnapshot;
+}
+
+export interface CatalogAssetRow {
+  id: string;
+  blob: Blob;
+  fileName: string;
+  mimeType: string;
+  createdAt: string;
 }
 
 export async function getAllProjects(): Promise<DesignSnapshot[]> {
@@ -107,6 +124,66 @@ export async function putMeta(key: string, value: unknown): Promise<void> {
     const tx = db.transaction(META_STORE, 'readwrite');
     const req = tx.objectStore(META_STORE).put(value, key);
     req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function getCustomCatalogItems(): Promise<FurnitureCatalogItem[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(CUSTOM_CATALOG_STORE, 'readonly');
+    const req = tx.objectStore(CUSTOM_CATALOG_STORE).getAll();
+    req.onsuccess = () => resolve((req.result as FurnitureCatalogItem[]) || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function putCustomCatalogItem(item: FurnitureCatalogItem): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(CUSTOM_CATALOG_STORE, 'readwrite');
+    const req = tx.objectStore(CUSTOM_CATALOG_STORE).put(item);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function putCustomCatalogItems(items: FurnitureCatalogItem[]): Promise<void> {
+  const db = await openDB();
+  await Promise.all(items.map((item) => new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(CUSTOM_CATALOG_STORE, 'readwrite');
+    const req = tx.objectStore(CUSTOM_CATALOG_STORE).put(item);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  })));
+}
+
+export async function deleteCustomCatalogItem(id: string): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(CUSTOM_CATALOG_STORE, 'readwrite');
+    const req = tx.objectStore(CUSTOM_CATALOG_STORE).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function putCatalogAsset(asset: CatalogAssetRow): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(CATALOG_ASSETS_STORE, 'readwrite');
+    const req = tx.objectStore(CATALOG_ASSETS_STORE).put(asset);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function getCatalogAsset(id: string): Promise<CatalogAssetRow | undefined> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(CATALOG_ASSETS_STORE, 'readonly');
+    const req = tx.objectStore(CATALOG_ASSETS_STORE).get(id);
+    req.onsuccess = () => resolve(req.result as CatalogAssetRow | undefined);
     req.onerror = () => reject(req.error);
   });
 }

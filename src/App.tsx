@@ -20,6 +20,7 @@ import {
   setLastOpenedProject,
   getLastOpenedProject,
 } from './lib/persistence';
+import { getCustomCatalogItems } from './lib/db';
 
 export default function App() {
   const { viewMode, selection, workspaceMode, cameraPreset, presentationMode } = useStore();
@@ -47,9 +48,11 @@ export default function App() {
     let cancelled = false;
     (async () => {
       const projects = await bootstrapProjects();
+      const customCatalog = await getCustomCatalogItems();
       if (cancelled) return;
       const store = useStore.getState();
       store.setSavedProjects(projects);
+      store.setCustomCatalogItems(customCatalog);
 
       const lastId = await getLastOpenedProject();
       if (cancelled || !lastId) return;

@@ -44,6 +44,15 @@ export interface FurnitureCatalogItem {
   renderOffset?: [number, number, number];
   assetSource?: string;
   licenseNote?: string;
+  sourceProvider?: '3dwarehouse' | 'manual' | 'public-library' | 'seed';
+  sourceUrl?: string;
+  sourceTitle?: string;
+  sourceAuthor?: string;
+  sourceThumbnailUrl?: string;
+  modelAssetId?: string;
+  thumbnailAssetId?: string;
+  assetFormat?: 'glb' | 'gltf';
+  importStatus?: 'pending' | 'published' | 'rejected';
 }
 
 export type FinishType = 'Matte' | 'Glossy' | 'Textured' | 'Natural' | 'Polished' | 'Reflective';
