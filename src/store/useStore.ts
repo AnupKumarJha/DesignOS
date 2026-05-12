@@ -81,6 +81,11 @@ export interface Furniture {
   assetFormat?: 'glb' | 'gltf';
   sourceUrl?: string;
   licenseNote?: string;
+  openState?: 'closed' | 'open';
+  openAmount?: number;
+  internalMaterialId?: string;
+  partMaterials?: Record<string, string>;
+  selectedPart?: string;
 }
 
 export interface BackgroundPlan {
@@ -104,6 +109,7 @@ export interface Room {
 }
 
 export type ViewMode = '2D' | '3D' | 'SPLIT';
+export type UnitSystem = 'mm' | 'feet' | 'inches';
 export type CameraPreset = 'FREE' | 'TOP' | 'FRONT' | 'SIDE' | 'ISLAND_FRONT';
 export type WorkspaceMode = 'DASHBOARD' | 'DESIGN';
 export type Tool = 'SELECT' | 'WALL' | 'FURNITURE' | 'WINDOW' | 'DOOR' | 'DELETE' | 'APPLY_FINISH';
@@ -130,9 +136,17 @@ export interface ProjectMeta {
   updatedAt: string;
 }
 
+export interface ProjectSettings {
+  unitSystem: UnitSystem;
+  defaultFloorMaterialId: string;
+  defaultWallHeight: number;
+  defaultWallThickness: number;
+}
+
 export interface DesignSnapshot {
-  schemaVersion: 3;
+  schemaVersion: 4;
   project: ProjectMeta;
+  settings: ProjectSettings;
   rooms: Room[];
   currentRoomId: string;
   walls: Wall[];
@@ -147,6 +161,7 @@ interface AppState {
   // Project
   workspaceMode: WorkspaceMode;
   project: ProjectMeta;
+  settings: ProjectSettings;
   savedProjects: DesignSnapshot[];
   customCatalogItems: FurnitureCatalogItem[];
 
@@ -185,6 +200,7 @@ interface AppState {
   // Actions
   setWorkspaceMode: (mode: WorkspaceMode) => void;
   updateProject: (updates: Partial<ProjectMeta>) => void;
+  updateProjectSettings: (updates: Partial<ProjectSettings>) => void;
   setSavedProjects: (projects: DesignSnapshot[]) => void;
   setCustomCatalogItems: (items: FurnitureCatalogItem[]) => void;
   loadSnapshot: (snapshot: DesignSnapshot) => void;
@@ -200,6 +216,7 @@ interface AppState {
   addFurniture: (item: Furniture) => void;
   removeFurniture: (id: string) => void;
   updateFurniture: (id: string, updates: Partial<Furniture>) => void;
+  deleteSelection: () => void;
 
   setSelection: (selection: { id: string, type: 'wall' | 'furniture' | 'opening' } | null) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -250,6 +267,13 @@ const createProject = (): ProjectMeta => {
   };
 };
 
+const createDefaultSettings = (): ProjectSettings => ({
+  unitSystem: 'mm',
+  defaultFloorMaterialId: 'floor_warm_beige',
+  defaultWallHeight: 2700,
+  defaultWallThickness: 150,
+});
+
 const createDefaultRoom = (project: ProjectMeta): Room => ({
   id: crypto.randomUUID(),
   name: project.room || 'Kitchen',
@@ -264,20 +288,38 @@ const createDefaultRoom = (project: ProjectMeta): Room => ({
  * `rooms`, `currentRoomId`, and `roomId` on every entity are present.
  */
 const migrateSnapshot = (snapshot: DesignSnapshot): DesignSnapshot => {
+  const settings = {
+    ...createDefaultSettings(),
+    ...((snapshot as any).settings ?? {}),
+  };
   const hasRooms = Array.isArray((snapshot as any).rooms) && (snapshot as any).rooms.length > 0;
   if (hasRooms && snapshot.currentRoomId) {
-    return snapshot;
+    return {
+      ...snapshot,
+      schemaVersion: 4,
+      settings,
+      furniture: snapshot.furniture.map((item) => ({
+        ...item,
+        openState: item.openState ?? 'closed',
+        openAmount: item.openAmount ?? 0,
+      })),
+    };
   }
   const legacyRoom = createDefaultRoom(snapshot.project);
   const tag = (e: any) => ({ ...e, roomId: e.roomId ?? legacyRoom.id });
   return {
     ...snapshot,
-    schemaVersion: 3,
+    schemaVersion: 4,
+    settings,
     rooms: [legacyRoom],
     currentRoomId: legacyRoom.id,
     walls: snapshot.walls.map(tag),
     openings: snapshot.openings.map(tag),
-    furniture: snapshot.furniture.map(tag),
+    furniture: snapshot.furniture.map((item) => ({
+      ...tag(item),
+      openState: item.openState ?? 'closed',
+      openAmount: item.openAmount ?? 0,
+    })),
   };
 };
 
@@ -285,10 +327,12 @@ export const useStore = create<AppState>()(
   temporal(
     subscribeWithSelector((set, get) => {
       const initialProject = createProject();
+      const initialSettings = createDefaultSettings();
       const initialRoom = createDefaultRoom(initialProject);
       return {
       workspaceMode: 'DASHBOARD',
       project: initialProject,
+      settings: initialSettings,
       savedProjects: [],
       customCatalogItems: [],
       rooms: [initialRoom],
@@ -324,6 +368,11 @@ export const useStore = create<AppState>()(
         project: { ...state.project, ...updates, updatedAt: new Date().toISOString() }
       })),
 
+      updateProjectSettings: (updates) => set((state) => ({
+        settings: { ...state.settings, ...updates },
+        project: { ...state.project, updatedAt: new Date().toISOString() },
+      })),
+
       setSavedProjects: (projects) => set({ savedProjects: projects }),
       setCustomCatalogItems: (items) => set({ customCatalogItems: items }),
 
@@ -332,6 +381,7 @@ export const useStore = create<AppState>()(
         set({
           workspaceMode: 'DESIGN',
           project: { ...migrated.project, updatedAt: new Date().toISOString() },
+          settings: migrated.settings,
           rooms: migrated.rooms,
           currentRoomId: migrated.currentRoomId,
           walls: migrated.walls,
@@ -347,8 +397,9 @@ export const useStore = create<AppState>()(
       getSnapshot: () => {
         const state = get();
         return {
-          schemaVersion: 3,
+          schemaVersion: 4,
           project: { ...state.project, updatedAt: new Date().toISOString() },
+          settings: state.settings,
           rooms: state.rooms,
           currentRoomId: state.currentRoomId,
           walls: state.walls,
@@ -393,7 +444,12 @@ export const useStore = create<AppState>()(
       })),
 
       addFurniture: (item) => set((state) => ({
-        furniture: [...state.furniture, { ...item, roomId: item.roomId || state.currentRoomId }],
+        furniture: [...state.furniture, {
+          ...item,
+          roomId: item.roomId || state.currentRoomId,
+          openState: item.openState ?? 'closed',
+          openAmount: item.openAmount ?? 0,
+        }],
         project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
@@ -407,6 +463,31 @@ export const useStore = create<AppState>()(
         furniture: state.furniture.map((f) => f.id === id ? { ...f, ...updates } : f),
         project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
+
+      deleteSelection: () => set((state) => {
+        const selection = state.selection;
+        if (!selection) return {};
+        if (selection.type === 'wall') {
+          return {
+            walls: state.walls.filter((w) => w.id !== selection.id),
+            openings: state.openings.filter((o) => o.wallId !== selection.id),
+            selection: null,
+            project: { ...state.project, updatedAt: new Date().toISOString() },
+          };
+        }
+        if (selection.type === 'furniture') {
+          return {
+            furniture: state.furniture.filter((f) => f.id !== selection.id),
+            selection: null,
+            project: { ...state.project, updatedAt: new Date().toISOString() },
+          };
+        }
+        return {
+          openings: state.openings.filter((o) => o.id !== selection.id),
+          selection: null,
+          project: { ...state.project, updatedAt: new Date().toISOString() },
+        };
+      }),
 
       setSelection: (selection) => set({ selection }),
 

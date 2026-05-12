@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { Html, RoundedBox } from '@react-three/drei';
 import { Furniture, RenderRoomType, Wall } from '../../store/useStore';
 import { RoomBounds, pointsToShape } from '../../lib/rendering';
+import { getMaterial } from '../../data/catalog';
+import { getFinishProps, getMaterialTexture } from '../../lib/materialTexture';
 
 interface RenderRoomKitProps {
   bounds: RoomBounds;
@@ -12,6 +14,7 @@ interface RenderRoomKitProps {
   showCeiling: boolean;
   showDecor: boolean;
   showLights: boolean;
+  floorMaterialId: string;
 }
 
 export const RenderRoomKit: React.FC<RenderRoomKitProps> = ({
@@ -22,21 +25,34 @@ export const RenderRoomKit: React.FC<RenderRoomKitProps> = ({
   showCeiling,
   showDecor,
   showLights,
+  floorMaterialId,
 }) => {
   const floorGeometry = useMemo(() => new THREE.ShapeGeometry(pointsToShape(walls, bounds)), [walls, bounds]);
   const ceilingGeometry = useMemo(() => new THREE.ShapeGeometry(pointsToShape(walls, bounds, 120)), [walls, bounds]);
-  const floorColor = roomType === 'Bathroom' ? '#dbe2e7' : roomType === 'Kitchen' ? '#ece7dc' : '#d7b986';
+  const floorMaterial = getMaterial(floorMaterialId);
+  const floorFinish = getFinishProps(floorMaterial?.finishType);
+  const floorTexture = useMemo(() => {
+    const texture = getMaterialTexture(floorMaterial);
+    if (!texture) return null;
+    const cloned = texture.clone();
+    cloned.wrapS = THREE.RepeatWrapping;
+    cloned.wrapT = THREE.RepeatWrapping;
+    cloned.repeat.set(Math.max(1, bounds.width / 650), Math.max(1, bounds.depth / 650));
+    cloned.needsUpdate = true;
+    return cloned;
+  }, [floorMaterial?.id, bounds.width, bounds.depth]);
   const ceilingY = bounds.wallHeight;
 
   return (
     <group>
       <mesh geometry={floorGeometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <meshPhysicalMaterial
-          color={floorColor}
-          roughness={roomType === 'Bathroom' || roomType === 'Kitchen' ? 0.18 : 0.32}
-          metalness={0}
-          clearcoat={roomType === 'Bathroom' || roomType === 'Kitchen' ? 0.55 : 0.24}
-          clearcoatRoughness={0.12}
+          color={floorMaterial?.color || (roomType === 'Bathroom' ? '#dbe2e7' : roomType === 'Kitchen' ? '#ece7dc' : '#d7b986')}
+          map={floorTexture}
+          roughness={floorFinish.roughness}
+          metalness={floorFinish.metalness}
+          clearcoat={floorFinish.clearcoat ?? (roomType === 'Bathroom' || roomType === 'Kitchen' ? 0.55 : 0.24)}
+          clearcoatRoughness={floorFinish.clearcoatRoughness ?? 0.12}
         />
       </mesh>
 

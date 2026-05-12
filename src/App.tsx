@@ -21,9 +21,10 @@ import {
   getLastOpenedProject,
 } from './lib/persistence';
 import { getCustomCatalogItems } from './lib/db';
+import { unitLabel } from './lib/units';
 
 export default function App() {
-  const { viewMode, selection, workspaceMode, cameraPreset, presentationMode } = useStore();
+  const { viewMode, selection, workspaceMode, cameraPreset, presentationMode, settings } = useStore();
   const { undo, redo } = useZustandStore(useStore.temporal, (state: any) => state);
   const [outputsOpen, setOutputsOpen] = React.useState(false);
   const [catalogAdminOpen, setCatalogAdminOpen] = React.useState(false);
@@ -76,6 +77,7 @@ export default function App() {
         state.furniture !== prev.furniture ||
         state.rooms !== prev.rooms ||
         state.currentRoomId !== prev.currentRoomId ||
+        state.settings !== prev.settings ||
         state.project !== prev.project;
       if (!designChanged) return;
       if (state.workspaceMode !== 'DESIGN') return;
@@ -175,7 +177,7 @@ export default function App() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Viewport</span>
                 <span className="text-[10px] font-bold text-slate-800 uppercase">{viewMode} Mode</span>
              </div>
-             <div className="text-[9px] text-slate-400 font-medium px-2">Project Units: 1mm · Camera: {cameraPreset}</div>
+             <div className="text-[9px] text-slate-400 font-medium px-2">Project Units: {unitLabel(settings.unitSystem)} · Camera: {cameraPreset}</div>
           </div>}
         </div>
 

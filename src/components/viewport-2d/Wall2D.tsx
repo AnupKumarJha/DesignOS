@@ -1,17 +1,19 @@
 import React from 'react';
 import { Circle, Group, Line, Text } from 'react-konva';
-import { Point, Wall } from '../../store/useStore';
+import { Point, UnitSystem, Wall } from '../../store/useStore';
 import { COLORS } from '../../lib/constants';
 import { getDistance } from '../../lib/math';
+import { formatLength } from '../../lib/units';
 
 interface Wall2DProps {
   wall: Wall;
   isSelected: boolean;
+  unitSystem: UnitSystem;
   onClick: () => void;
   onEndpointDrag?: (endpoint: 'start' | 'end', point: Point) => void;
 }
 
-export const Wall2D: React.FC<Wall2DProps> = ({ wall, isSelected, onClick, onEndpointDrag }) => {
+export const Wall2D: React.FC<Wall2DProps> = ({ wall, isSelected, unitSystem, onClick, onEndpointDrag }) => {
   const length = getDistance(wall.start, wall.end);
   const midPoint = {
     x: (wall.start.x + wall.end.x) / 2,
@@ -70,13 +72,14 @@ export const Wall2D: React.FC<Wall2DProps> = ({ wall, isSelected, onClick, onEnd
         rotation={angle * (180 / Math.PI)}
       >
         <Text
-          text={`${Math.round(length)}mm`}
-          fontSize={14}
-          fill="#000"
+          text={formatLength(length, unitSystem)}
+          fontSize={28}
+          fontStyle="bold"
+          fill="#0f172a"
           align="center"
           verticalAlign="middle"
-          offsetY={wall.thickness / 2 + 15}
-          offsetX={20}
+          offsetY={wall.thickness / 2 + 32}
+          offsetX={46}
         />
       </Group>
     </Group>

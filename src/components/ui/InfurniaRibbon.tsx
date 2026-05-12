@@ -21,6 +21,7 @@ import {
   TableProperties,
   Undo2,
   Redo2,
+  Trash2,
   Wallpaper,
   ZoomIn,
 } from 'lucide-react';
@@ -57,6 +58,7 @@ export const InfurniaRibbon: React.FC<InfurniaRibbonProps> = ({
     setShowCeiling,
     setShowDecor,
     setShowLights,
+    deleteSelection,
   } = useStore();
 
   const setTool = (tool: Tool, category?: Parameters<typeof setActiveCategory>[0]) => {
@@ -85,6 +87,10 @@ export const InfurniaRibbon: React.FC<InfurniaRibbonProps> = ({
         { label: 'Undo', icon: Undo2, onClick: () => window.dispatchEvent(new CustomEvent('design-os:undo')) },
         { label: 'Redo', icon: Redo2, onClick: () => window.dispatchEvent(new CustomEvent('design-os:redo')) },
         { label: 'Select', icon: MousePointer2, active: activeTool === 'SELECT', onClick: () => setActiveTool('SELECT') },
+        { label: 'Delete', icon: Trash2, active: activeTool === 'DELETE', onClick: () => {
+          deleteSelection();
+          setActiveTool('SELECT');
+        } },
       ],
     },
     {
@@ -191,7 +197,7 @@ export const InfurniaRibbon: React.FC<InfurniaRibbonProps> = ({
             <TableProperties size={12} />
             Catalogue
           </button>
-          <button onClick={() => setViewMode('2D')} className="px-3 py-1.5 rounded-md bg-white text-[11px] font-black text-slate-700">Floorplan</button>
+          <button onClick={() => setViewMode('2D')} className="px-3 py-1.5 rounded-md bg-white text-[11px] font-black text-slate-700">2D</button>
           <button onClick={() => { setViewMode('3D'); setCameraPreset('FREE'); }} className="px-3 py-1.5 rounded-md text-[11px] font-black text-slate-600 hover:bg-white">3D</button>
           <button onClick={() => setViewMode('SPLIT')} className="px-3 py-1.5 rounded-md text-[11px] font-black text-slate-600 hover:bg-white">Split</button>
         </div>

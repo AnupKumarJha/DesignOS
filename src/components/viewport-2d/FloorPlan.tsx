@@ -10,6 +10,7 @@ import { FloorPlanImportPanel } from '../ui/FloorPlanImportPanel';
 import { snapToGrid, snapToAngle, findClosestPoint, getClosestPointOnSegment, getDistance } from '../../lib/math';
 import { DEFAULT_WALL_HEIGHT, DEFAULT_WALL_THICKNESS } from '../../lib/constants';
 import { getCatalogItem, getMaterial, getVariant } from '../../data/catalog';
+import { formatLength } from '../../lib/units';
 
 export const FloorPlan: React.FC = () => {
   const {
@@ -35,6 +36,8 @@ export const FloorPlan: React.FC = () => {
     removeFurniture,
     removeOpening,
     customCatalogItems,
+    settings,
+    deleteSelection,
   } = useStore();
   const currentRoom = rooms.find((r) => r.id === currentRoomId);
   const backgroundPlan = currentRoom?.backgroundPlan ?? null;
@@ -273,6 +276,9 @@ export const FloorPlan: React.FC = () => {
       addFurniture(newFurniture);
       setSelection({ id: newFurniture.id, type: 'furniture' });
       setActiveTool('SELECT');
+    } else if (activeTool === 'DELETE') {
+      deleteSelection();
+      setActiveTool('SELECT');
     } else if (activeTool === 'WINDOW' || activeTool === 'DOOR') {
       // Find closest wall
       let closestWall = null;
@@ -327,8 +333,8 @@ export const FloorPlan: React.FC = () => {
       roomId: currentRoomId,
       start: draftStart,
       end: wallEnd,
-      thickness: DEFAULT_WALL_THICKNESS,
-      height: DEFAULT_WALL_HEIGHT,
+      thickness: settings.defaultWallThickness || DEFAULT_WALL_THICKNESS,
+      height: settings.defaultWallHeight || DEFAULT_WALL_HEIGHT,
     };
 
     addWall(newWall);
@@ -466,6 +472,7 @@ export const FloorPlan: React.FC = () => {
                 key={wall.id}
                 wall={wall}
                 isSelected={selection?.id === wall.id}
+                unitSystem={settings.unitSystem}
                 onClick={() => handleWallClick(wall)}
                 onEndpointDrag={(endpoint, point) => updateWall(wall.id, { [endpoint]: snapToGrid(point, 50) })}
               />
@@ -582,7 +589,7 @@ export const FloorPlan: React.FC = () => {
               <Text
                 x={(draftStart.x + currentMousePos.x) / 2}
                 y={(draftStart.y + currentMousePos.y) / 2 - 80}
-                text={`${Math.round(getDistance(draftStart, currentMousePos))} mm`}
+                text={formatLength(getDistance(draftStart, currentMousePos), settings.unitSystem)}
                 fontSize={120}
                 fontStyle="bold"
                 fill="#1e293b"

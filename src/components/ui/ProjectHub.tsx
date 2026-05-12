@@ -132,7 +132,8 @@ export const ProjectHub: React.FC = () => {
     };
     const snapshot: DesignSnapshot = {
       ...base,
-      schemaVersion: 3,
+      schemaVersion: 4,
+      settings: base.settings,
       project: projectMeta,
       rooms: [starterRoom],
       currentRoomId: starterRoom.id,

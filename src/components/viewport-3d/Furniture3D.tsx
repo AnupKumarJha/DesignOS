@@ -285,27 +285,115 @@ const RenderCabinet: React.FC<{ item: Furniture; materialProps: any; countertop?
 }) => {
   const shutterCount = Math.max(1, item.shutterCount ?? 1);
   const drawerCount = item.drawerCount ?? 0;
+  const openAmount = item.openState === 'open' ? (item.openAmount ?? 1) : 0;
+  const isOpenUnit = (item.shutterCount ?? 1) === 0 || item.catalogItemId === 'open_unit';
+  const isPullout = item.catalogItemId === 'pullout_unit';
+  const isSink = item.type === 'SINK_UNIT' || item.catalogItemId === 'sink_unit';
+  const internalMaterial = getMaterial(item.internalMaterialId) || getMaterial('laminate_ash_grey');
+  const internalFinish = getFinishProps(internalMaterial?.finishType);
+  const internalTexture = useMemo(() => {
+    const source = getMaterialTexture(internalMaterial);
+    if (!source) return null;
+    const cloned = source.clone();
+    cloned.wrapS = THREE.RepeatWrapping;
+    cloned.wrapT = THREE.RepeatWrapping;
+    cloned.repeat.set(Math.max(1, item.width / 700), Math.max(1, item.height / 700));
+    cloned.needsUpdate = true;
+    return cloned;
+  }, [internalMaterial?.id, item.width, item.height]);
+  const panelMaterial = () => (
+    <PhysicalMaterial
+      {...materialProps}
+      color={materialProps.color}
+    />
+  );
+  const internalMaterialNode = () => (
+    <meshPhysicalMaterial
+      color={internalMaterial?.color || '#d8dee8'}
+      map={internalTexture}
+      roughness={internalFinish.roughness}
+      metalness={internalFinish.metalness}
+      clearcoat={internalFinish.clearcoat ?? 0.1}
+      clearcoatRoughness={internalFinish.clearcoatRoughness ?? 0.28}
+    />
+  );
+
   return (
     <group>
-      <RoundedBox args={[item.width, item.height, item.depth]} radius={18} smoothness={6} castShadow receiveShadow>
-        <PhysicalMaterial {...materialProps} />
+      {/* Cabinet carcass: separate panels so open units reveal real internal volume. */}
+      <RoundedBox position={[0, 0, -item.depth / 2 + 16]} args={[item.width, item.height, 32]} radius={10} smoothness={4} castShadow receiveShadow>
+        {internalMaterialNode()}
+      </RoundedBox>
+      {[-1, 1].map((side) => (
+        <RoundedBox key={side} position={[side * (item.width / 2 - 12), 0, 0]} args={[24, item.height, item.depth]} radius={8} smoothness={4} castShadow receiveShadow>
+          {panelMaterial()}
+        </RoundedBox>
+      ))}
+      <RoundedBox position={[0, item.height / 2 - 12, 0]} args={[item.width, 24, item.depth]} radius={8} smoothness={4} castShadow receiveShadow>
+        {panelMaterial()}
+      </RoundedBox>
+      <RoundedBox position={[0, -item.height / 2 + 12, 0]} args={[item.width, 24, item.depth]} radius={8} smoothness={4} castShadow receiveShadow>
+        {panelMaterial()}
       </RoundedBox>
       {countertop && (
         <RoundedBox position={[0, item.height / 2 + 28, 0]} args={[item.width + 60, 56, item.depth + 70]} radius={12} smoothness={5} castShadow receiveShadow>
           <meshPhysicalMaterial color="#111827" roughness={0.18} clearcoat={0.75} clearcoatRoughness={0.08} />
         </RoundedBox>
       )}
-      {Array.from({ length: drawerCount || shutterCount }).map((_, idx) => {
+      {isSink && (
+        <>
+          <RoundedBox position={[0, item.height / 2 + 64, item.depth * 0.08]} args={[Math.min(520, item.width * 0.62), 90, item.depth * 0.48]} radius={42} smoothness={8} castShadow>
+            <meshPhysicalMaterial color="#cbd5e1" metalness={0.18} roughness={0.22} clearcoat={0.65} />
+          </RoundedBox>
+          <mesh position={[0, item.height / 2 + 112, item.depth * 0.08]} rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[Math.min(190, item.width * 0.24), 12, 12, 72]} />
+            <meshPhysicalMaterial color="#94a3b8" metalness={0.35} roughness={0.18} />
+          </mesh>
+        </>
+      )}
+      {(isOpenUnit || openAmount > 0) && (
+        <>
+          {[-0.18, 0.18].map((yFactor) => (
+            <RoundedBox key={yFactor} position={[0, item.height * yFactor, 0]} args={[item.width - 70, 24, item.depth - 60]} radius={6} smoothness={3} castShadow receiveShadow>
+              {internalMaterialNode()}
+            </RoundedBox>
+          ))}
+          <RoundedBox position={[0, 0, item.depth / 2 - 34]} args={[item.width - 84, item.height - 100, 14]} radius={6} smoothness={3}>
+            <meshBasicMaterial color="#0f172a" transparent opacity={0.08} />
+          </RoundedBox>
+        </>
+      )}
+      {isPullout && openAmount > 0 && (
+        <group position={[0, 0, item.depth / 2 + openAmount * item.depth * 0.48]}>
+          <RoundedBox args={[item.width - 72, item.height - 120, 42]} radius={12} smoothness={5} castShadow>
+            <meshPhysicalMaterial color="#d4af7a" metalness={0.45} roughness={0.22} />
+          </RoundedBox>
+          {[-0.3, 0, 0.3].map((x) => (
+            <mesh key={x} position={[item.width * x, -80, 40]}>
+              <cylinderGeometry args={[34, 34, 190, 24]} />
+              <meshPhysicalMaterial color="#1f7a4d" roughness={0.3} clearcoat={0.4} />
+            </mesh>
+          ))}
+        </group>
+      )}
+      {!isOpenUnit && Array.from({ length: drawerCount || shutterCount }).map((_, idx) => {
         const count = drawerCount || shutterCount;
         const w = drawerCount ? item.width - 36 : (item.width - 42) / count;
         const h = drawerCount ? (item.height - 44) / count : item.height - 54;
         const x = drawerCount ? 0 : -item.width / 2 + 21 + w / 2 + idx * w;
         const y = drawerCount ? item.height / 2 - 26 - h / 2 - idx * h : 0;
+        const zOpen = drawerCount || isPullout ? openAmount * item.depth * 0.45 : 0;
+        const doorSwing = !drawerCount && openAmount > 0 ? (idx % 2 === 0 ? -Math.PI / 2.8 : Math.PI / 2.8) * openAmount : 0;
         return (
-          <group key={idx} position={[x, y, item.depth / 2 + 12]}>
+          <group key={idx} position={[x, y, item.depth / 2 + 12 + zOpen]} rotation={[0, doorSwing, 0]}>
             <RoundedBox args={[w - 10, h - 10, 22]} radius={10} smoothness={4} castShadow>
               <PhysicalMaterial {...materialProps} color={materialProps.color} />
             </RoundedBox>
+            {drawerCount > 0 && openAmount > 0 && (
+              <RoundedBox position={[0, 0, -item.depth * 0.24]} args={[w - 46, h - 38, item.depth * 0.46]} radius={8} smoothness={3} castShadow receiveShadow>
+                {internalMaterialNode()}
+              </RoundedBox>
+            )}
             {item.hasHandle && (
               <RoundedBox position={[drawerCount ? 0 : w / 2 - 46, 0, 18]} args={[drawerCount ? Math.min(220, item.width * 0.38) : 12, drawerCount ? 12 : 190, 12]} radius={5} smoothness={3} castShadow>
                 <meshPhysicalMaterial color="#d4af7a" metalness={0.65} roughness={0.18} />

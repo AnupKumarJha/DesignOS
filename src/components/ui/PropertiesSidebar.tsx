@@ -1,10 +1,11 @@
 import React from 'react';
-import { useStore, Wall, Furniture } from '../../store/useStore';
+import { useStore, Wall, Furniture, UnitSystem } from '../../store/useStore';
 import { X, Settings2, Trash2, ChevronDown, Layers, Ruler, Palette, Sparkles, ChevronRight, Move, RotateCw } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { furnitureCatalog, getCatalogItem, getMaterial } from '../../data/catalog';
+import { furnitureCatalog, getCatalogItem, getMaterial, materialCatalog } from '../../data/catalog';
 import { getDistance } from '../../lib/math';
 import { getPatternStyle } from '../../lib/materialPattern';
+import { fromDisplayLength, toDisplayLength, unitLabel } from '../../lib/units';
 
 export const PropertiesSidebar: React.FC = () => {
   const {
@@ -15,12 +16,11 @@ export const PropertiesSidebar: React.FC = () => {
     updateWall,
     updateFurniture,
     updateOpening,
-    removeWall,
-    removeFurniture,
-    removeOpening,
     setSelection,
     setMaterialDrawerOpen,
     setMaterialDrawerCategory,
+    deleteSelection,
+    settings,
   } = useStore();
 
   if (!selection) return null;
@@ -44,9 +44,7 @@ export const PropertiesSidebar: React.FC = () => {
   const selectedTypeLabel = isWall ? 'Wall' : isFurniture ? 'Furniture' : (item as any).type;
 
   const deleteSelectedItem = () => {
-    if (isWall) removeWall(item.id);
-    else if (isFurniture) removeFurniture(item.id);
-    else if (isOpening) removeOpening(item.id);
+    deleteSelection();
   };
 
   // Parent wall lookup for openings (door/window) — needed for offset-in-mm
@@ -101,10 +99,10 @@ export const PropertiesSidebar: React.FC = () => {
         <Section title="Dimensions & Construction" icon={Ruler}>
           {isWall && (
             <div className="space-y-1.5 mb-4">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Length (mm)</label>
-              <Input
-                type="number"
-                value={Math.round(wallLength)}
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Length ({unitLabel(settings.unitSystem)})</label>
+              <UnitInput
+                unitSystem={settings.unitSystem}
+                valueMm={wallLength}
                 onChange={(v) => {
                   const wall = item as Wall;
                   const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
@@ -120,10 +118,10 @@ export const PropertiesSidebar: React.FC = () => {
           )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Height (mm)</label>
-              <Input 
-                type="number" 
-                value={item.height}
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Height ({unitLabel(settings.unitSystem)})</label>
+              <UnitInput
+                unitSystem={settings.unitSystem}
+                valueMm={item.height}
                 onChange={(v) => {
                   if (isWall) updateWall(item.id, { height: v });
                   else if (isFurniture) updateFurniture(item.id, { height: v });
@@ -133,17 +131,24 @@ export const PropertiesSidebar: React.FC = () => {
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                {isWall ? 'Thickness' : isFurniture ? 'Rotation (°)' : 'Width (mm)'}
+                {isWall ? `Thickness (${unitLabel(settings.unitSystem)})` : isFurniture ? 'Rotation (°)' : `Width (${unitLabel(settings.unitSystem)})`}
               </label>
-              <Input 
-                type="number" 
-                value={isWall ? (item as any).thickness : isFurniture ? (item as any).rotation : (item as any).width}
+              {isFurniture ? (
+                <Input
+                  type="number"
+                  value={(item as any).rotation}
+                  onChange={(v) => updateFurniture(item.id, { rotation: v })}
+                />
+              ) : (
+              <UnitInput
+                unitSystem={settings.unitSystem}
+                valueMm={isWall ? (item as any).thickness : (item as any).width}
                 onChange={(v) => {
                   if (isWall) updateWall(item.id, { thickness: v });
-                  else if (isFurniture) updateFurniture(item.id, { rotation: v });
                   else if (isOpening) updateOpening(item.id, { width: v });
                 }}
               />
+              )}
             </div>
           </div>
           
@@ -151,10 +156,10 @@ export const PropertiesSidebar: React.FC = () => {
             <>
              <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Depth (mm)</label>
-                  <Input 
-                    type="number" 
-                    value={(item as any).depth}
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Depth ({unitLabel(settings.unitSystem)})</label>
+                  <UnitInput
+                    unitSystem={settings.unitSystem}
+                    valueMm={(item as any).depth}
                     onChange={(v) => updateFurniture(item.id, { depth: v })}
                   />
                 </div>
@@ -222,13 +227,15 @@ export const PropertiesSidebar: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <LabeledInput
-                    label="X (mm)"
-                    value={Math.round((item as Wall).start.x)}
+                    label={`X (${unitLabel(settings.unitSystem)})`}
+                    unitSystem={settings.unitSystem}
+                    valueMm={(item as Wall).start.x}
                     onChange={(v) => updateWall(item.id, { start: { ...(item as Wall).start, x: v } })}
                   />
                   <LabeledInput
-                    label="Y (mm)"
-                    value={Math.round((item as Wall).start.y)}
+                    label={`Y (${unitLabel(settings.unitSystem)})`}
+                    unitSystem={settings.unitSystem}
+                    valueMm={(item as Wall).start.y}
                     onChange={(v) => updateWall(item.id, { start: { ...(item as Wall).start, y: v } })}
                   />
                 </div>
@@ -239,13 +246,15 @@ export const PropertiesSidebar: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <LabeledInput
-                    label="X (mm)"
-                    value={Math.round((item as Wall).end.x)}
+                    label={`X (${unitLabel(settings.unitSystem)})`}
+                    unitSystem={settings.unitSystem}
+                    valueMm={(item as Wall).end.x}
                     onChange={(v) => updateWall(item.id, { end: { ...(item as Wall).end, x: v } })}
                   />
                   <LabeledInput
-                    label="Y (mm)"
-                    value={Math.round((item as Wall).end.y)}
+                    label={`Y (${unitLabel(settings.unitSystem)})`}
+                    unitSystem={settings.unitSystem}
+                    valueMm={(item as Wall).end.y}
                     onChange={(v) => updateWall(item.id, { end: { ...(item as Wall).end, y: v } })}
                   />
                 </div>
@@ -272,8 +281,9 @@ export const PropertiesSidebar: React.FC = () => {
               {parentWall && (
                 <>
                   <LabeledInput
-                    label={`Distance from wall start (mm) · max ${Math.round(parentWallLength)}`}
-                    value={Math.round((item as any).offset * parentWallLength)}
+                    label={`Distance from wall start (${unitLabel(settings.unitSystem)})`}
+                    unitSystem={settings.unitSystem}
+                    valueMm={(item as any).offset * parentWallLength}
                     onChange={(v) =>
                       updateOpening(item.id, {
                         offset: parentWallLength
@@ -283,8 +293,9 @@ export const PropertiesSidebar: React.FC = () => {
                     }
                   />
                   <LabeledInput
-                    label="Bottom Height from Floor (mm)"
-                    value={Math.round((item as any).bottomHeight ?? 0)}
+                    label={`Bottom Height (${unitLabel(settings.unitSystem)})`}
+                    unitSystem={settings.unitSystem}
+                    valueMm={(item as any).bottomHeight ?? 0}
                     onChange={(v) => updateOpening(item.id, { bottomHeight: Math.max(0, v) })}
                   />
                   <div className="text-[10px] text-slate-400 font-medium">
@@ -308,8 +319,9 @@ export const PropertiesSidebar: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <LabeledInput
-                    label="X (mm)"
-                    value={Math.round((item as Furniture).position.x)}
+                    label={`X (${unitLabel(settings.unitSystem)})`}
+                    unitSystem={settings.unitSystem}
+                    valueMm={(item as Furniture).position.x}
                     onChange={(v) =>
                       updateFurniture(item.id, {
                         position: { ...(item as Furniture).position, x: v },
@@ -317,8 +329,9 @@ export const PropertiesSidebar: React.FC = () => {
                     }
                   />
                   <LabeledInput
-                    label="Y (mm)"
-                    value={Math.round((item as Furniture).position.y)}
+                    label={`Y (${unitLabel(settings.unitSystem)})`}
+                    unitSystem={settings.unitSystem}
+                    valueMm={(item as Furniture).position.y}
                     onChange={(v) =>
                       updateFurniture(item.id, {
                         position: { ...(item as Furniture).position, y: v },
@@ -333,11 +346,13 @@ export const PropertiesSidebar: React.FC = () => {
                   Rotation
                 </div>
                 <div className="flex items-center gap-2">
-                  <LabeledInput
-                    label="Angle (°)"
-                    value={Math.round((item as Furniture).rotation)}
-                    onChange={(v) => updateFurniture(item.id, { rotation: v })}
-                  />
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Angle (°)</label>
+                    <Input
+                      value={Math.round((item as Furniture).rotation)}
+                      onChange={(v) => updateFurniture(item.id, { rotation: v })}
+                    />
+                  </div>
                   <div className="flex gap-1">
                     {[0, 90, 180, 270].map((deg) => (
                       <button
@@ -512,10 +527,39 @@ export const PropertiesSidebar: React.FC = () => {
 
         {isFurniture && (
           <Section title="Cabinet Structure" icon={Sparkles}>
+            <div className="space-y-3 mb-4">
+              <button
+                onClick={() => {
+                  const furnitureItem = item as Furniture;
+                  const nextOpen = furnitureItem.openState === 'open' ? 'closed' : 'open';
+                  updateFurniture(furnitureItem.id, { openState: nextOpen, openAmount: nextOpen === 'open' ? 1 : 0 });
+                }}
+                className="w-full rounded-xl bg-slate-900 text-white py-2.5 text-[11px] font-black hover:bg-slate-700"
+              >
+                {(item as Furniture).openState === 'open' ? 'Close Unit' : 'Open Unit / Inspect Internals'}
+              </button>
+              <label className="block space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Interior Finish</span>
+                <select
+                  value={(item as Furniture).internalMaterialId || 'laminate_ash_grey'}
+                  onChange={(event) => updateFurniture(item.id, { internalMaterialId: event.target.value })}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                >
+                  {materialCatalog
+                    .filter((material) => ['Laminate', 'Veneer', 'Solid Paints'].includes(material.group))
+                    .map((material) => (
+                      <option key={material.id} value={material.id}>
+                        {material.name} · {material.group}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </div>
             <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden">
               {[
                 ['Carcass', `${(item as Furniture).width}W × ${(item as Furniture).depth}D`],
                 ['Shutters / Drawers', `${(item as Furniture).shutterCount ?? 0} shutters · ${(item as Furniture).drawerCount ?? 0} drawers`],
+                ['Open State', (item as Furniture).openState === 'open' ? 'Open for inspection' : 'Closed'],
                 ['Skirting Options', `${(item as Furniture).skirtingHeight ?? 0}mm`],
                 ['End Panel', 'Left / right panel ready'],
                 ['Add Custom Panel', 'Use for fillers, fascias, and side panels'],
@@ -570,16 +614,35 @@ const Input: React.FC<{ value: number; onChange: (v: number) => void; type?: str
   />
 );
 
-const LabeledInput: React.FC<{ label: string; value: number; onChange: (v: number) => void }> = ({
+const UnitInput: React.FC<{ valueMm: number; unitSystem: UnitSystem; onChange: (v: number) => void }> = ({
+  valueMm,
+  unitSystem,
+  onChange,
+}) => (
+  <input
+    type="number"
+    value={Number(toDisplayLength(valueMm, unitSystem).toFixed(unitSystem === 'mm' ? 0 : 2))}
+    onChange={(e) => onChange(fromDisplayLength(parseFloat(e.target.value) || 0, unitSystem))}
+    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-1 focus:ring-blue-600 focus:bg-white transition-all shadow-inner"
+  />
+);
+
+const LabeledInput: React.FC<{
+  label: string;
+  valueMm: number;
+  unitSystem: UnitSystem;
+  onChange: (v: number) => void;
+}> = ({
   label,
-  value,
+  valueMm,
+  unitSystem,
   onChange,
 }) => (
   <div className="space-y-1">
     <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
       {label}
     </label>
-    <Input value={value} onChange={onChange} />
+    <UnitInput valueMm={valueMm} unitSystem={unitSystem} onChange={onChange} />
   </div>
 );
 

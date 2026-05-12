@@ -3,17 +3,20 @@ import { Canvas } from '@react-three/fiber';
 import { ContactShadows, Environment, Grid, GizmoHelper, GizmoViewport, OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
 import { Bloom, EffectComposer, SSAO, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
-import { CameraPreset, useStore } from '../../store/useStore';
+import { CameraPreset, Wall, useStore } from '../../store/useStore';
 import { Wall3D } from './Wall3D';
 import { Furniture3D } from './Furniture3D';
 import { cn } from '../../lib/utils';
 import { getMaterial } from '../../data/catalog';
+import { getFinishProps, getMaterialTexture } from '../../lib/materialTexture';
 import {
   downloadCanvasPng,
   getRenderCameraPosition,
   getRenderTarget,
   getRoomBounds,
   inferRenderRoomType,
+  pointsToShape,
+  RoomBounds,
 } from '../../lib/rendering';
 import { RenderRoomKit } from './RenderRoomKit';
 import { RenderToolbar } from './RenderToolbar';
@@ -24,7 +27,7 @@ interface Scene3DProps {
 
 const cameraLabels: Record<CameraPreset, string> = {
   FREE: 'Free View',
-  TOP: 'Top / Floorplan',
+  TOP: 'Top / 2D',
   FRONT: 'Front Elevation',
   SIDE: 'Side Elevation',
   ISLAND_FRONT: 'Island Front Render',
@@ -50,6 +53,8 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
     activeFinish,
     updateWall,
     updateFurniture,
+    removeWall,
+    removeFurniture,
     setCameraPreset,
     presentationMode,
     renderQuality,
@@ -59,6 +64,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
     showDecor,
     showLights,
     rooms,
+    settings,
   } = useStore();
   const walls = allWalls.filter((w) => w.roomId === currentRoomId);
   const furniture = allFurniture.filter((f) => f.roomId === currentRoomId);
@@ -204,6 +210,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
               showCeiling={showCeiling}
               showDecor={showDecor}
               showLights={showLights}
+              floorMaterialId={settings.defaultFloorMaterialId}
             />
             <ContactShadows
               position={[renderBounds.centerX, 8, renderBounds.centerZ]}
@@ -228,16 +235,14 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         />}
 
         {/* Floor Level */}
-        {!presentationMode && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]} receiveShadow>
-          <planeGeometry args={[100000, 100000]} />
-          <meshStandardMaterial
-            color={presentationMode ? "#e7d2a4" : "#f1f5f9"}
-            roughness={1}
-            polygonOffset
-            polygonOffsetFactor={1}
-            polygonOffsetUnits={1}
+        {!presentationMode && (
+          <FloorSurface
+            bounds={renderBounds}
+            walls={walls}
+            materialId={settings.defaultFloorMaterialId}
+            infinite
           />
-        </mesh>}
+        )}
 
         {/* Walls */}
         <group>
@@ -249,6 +254,10 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
               openings={openings.filter(o => o.wallId === wall.id)}
               isSelected={!presentationMode && selection?.id === wall.id}
               onClick={() => {
+                if (activeTool === 'DELETE') {
+                  removeWall(wall.id);
+                  return;
+                }
                 if (activeTool === 'APPLY_FINISH' && activeFinish) {
                   const material = getMaterial(activeFinish);
                   updateWall(wall.id, { color: material?.color, materialId: material?.id });
@@ -269,9 +278,16 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
               isSelected={!presentationMode && selection?.id === item.id}
               renderMode={presentationMode}
               onClick={() => {
+                if (activeTool === 'DELETE') {
+                  removeFurniture(item.id);
+                  return;
+                }
                 if (activeTool === 'APPLY_FINISH' && activeFinish) {
                   const material = getMaterial(activeFinish);
                   updateFurniture(item.id, { color: material?.color, materialId: material?.id });
+                } else if (selection?.type === 'furniture' && selection.id === item.id && isOpenableFurniture(item)) {
+                  const nextOpen = item.openState === 'open' ? 'closed' : 'open';
+                  updateFurniture(item.id, { openState: nextOpen, openAmount: nextOpen === 'open' ? 1 : 0 });
                 } else {
                   setSelection({ id: item.id, type: 'furniture' });
                 }
@@ -331,5 +347,67 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         </button>
       </div>}
     </div>
+  );
+};
+
+const isOpenableFurniture = (item: { type: string; catalogItemId?: string; drawerCount?: number; shutterCount?: number }) =>
+  ['CABINET_BASE', 'CABINET_WALL', 'CABINET_TALL', 'SINK_UNIT', 'WARDROBE', 'DRESSER', 'VANITY', 'TV_UNIT', 'SHOE_RACK'].includes(item.type) ||
+  ['drawer_unit', 'open_unit', 'pullout_unit', 'sink_unit', 'cabinet_base', 'cabinet_wall', 'cabinet_tall'].includes(item.catalogItemId ?? '') ||
+  (item.drawerCount ?? 0) > 0 ||
+  (item.shutterCount ?? 0) > 0;
+
+const FloorSurface: React.FC<{
+  bounds: RoomBounds;
+  walls: Wall[];
+  materialId: string;
+  infinite?: boolean;
+}> = ({ bounds, walls, materialId, infinite = false }) => {
+  const material = getMaterial(materialId);
+  const finish = getFinishProps(material?.finishType);
+  const texture = useMemo(() => {
+    const source = getMaterialTexture(material);
+    if (!source) return null;
+    const cloned = source.clone();
+    cloned.wrapS = THREE.RepeatWrapping;
+    cloned.wrapT = THREE.RepeatWrapping;
+    cloned.repeat.set(Math.max(1, bounds.width / 650), Math.max(1, bounds.depth / 650));
+    cloned.needsUpdate = true;
+    return cloned;
+  }, [material?.id, bounds.width, bounds.depth]);
+  const geometry = useMemo(() => {
+    if (infinite) return null;
+    return new THREE.ShapeGeometry(pointsToShape(walls, bounds));
+  }, [bounds, walls, infinite]);
+
+  if (infinite) {
+    return (
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[bounds.centerX, -2, bounds.centerZ]} receiveShadow>
+        <planeGeometry args={[Math.max(bounds.size * 2.4, 10000), Math.max(bounds.size * 2.4, 10000)]} />
+        <meshPhysicalMaterial
+          color={material?.color || '#e7d2a4'}
+          map={texture}
+          roughness={finish.roughness}
+          metalness={finish.metalness}
+          clearcoat={finish.clearcoat ?? 0.12}
+          clearcoatRoughness={finish.clearcoatRoughness ?? 0.28}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+        />
+      </mesh>
+    );
+  }
+
+  return (
+    <mesh geometry={geometry ?? undefined} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+      <meshPhysicalMaterial
+        color={material?.color || '#e7d2a4'}
+        map={texture}
+        roughness={finish.roughness}
+        metalness={finish.metalness}
+        clearcoat={finish.clearcoat ?? 0.2}
+        clearcoatRoughness={finish.clearcoatRoughness ?? 0.22}
+      />
+    </mesh>
   );
 };

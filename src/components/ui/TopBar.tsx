@@ -30,6 +30,7 @@ import { cn } from '../../lib/utils';
 import { downloadJson, readJsonFile, upsertProject } from '../../lib/persistence';
 import { AddRoomDialog } from './AddRoomDialog';
 import { QuotationModal } from './QuotationModal';
+import { GlobalSettingsModal } from './GlobalSettingsModal';
 
 export const TopBar: React.FC = () => {
   const {
@@ -55,6 +56,7 @@ export const TopBar: React.FC = () => {
   const { undo, redo, pastStates, futureStates } = useZustandStore(useStore.temporal, (state: any) => state);
   const [showQuotation, setShowQuotation] = useState(false);
   const [showProjectEditor, setShowProjectEditor] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [roomMenuOpen, setRoomMenuOpen] = useState(false);
   const [addRoomOpen, setAddRoomOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -127,6 +129,7 @@ export const TopBar: React.FC = () => {
   return (
     <div className="h-12 bg-white border-b border-slate-200 flex items-center justify-between gap-2 px-3 z-[100] select-none whitespace-nowrap min-w-0">
       <QuotationModal open={showQuotation} onClose={() => setShowQuotation(false)} />
+      <GlobalSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {showProjectEditor && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-8">
@@ -343,7 +346,7 @@ export const TopBar: React.FC = () => {
             )}
           >
             <Layout size={12} />
-            <span>Floorplan</span>
+            <span>2D</span>
           </button>
           <button
             onClick={() => setViewMode('3D')}
@@ -453,7 +456,11 @@ export const TopBar: React.FC = () => {
           >
             <FileText size={16} />
           </button>
-          <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all" title="Settings">
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded transition-all"
+            title="Global Settings"
+          >
             <Settings size={16} />
           </button>
         </div>

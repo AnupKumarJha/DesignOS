@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "catalog:scrape-3dw": "node scripts/catalog-scrape-3dw.mjs"
+    "catalog:scrape-3dw": "node scripts/catalog-scrape-3dw.mjs",
+    "catalog:scrape-sf": "node scripts/catalog-scrape-sketchfab.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

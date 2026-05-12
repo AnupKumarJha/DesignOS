@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useStore, CameraPreset } from '../../store/useStore';
 import { cn } from '../../lib/utils';
+import { unitLabel } from '../../lib/units';
 
 const views: { id: CameraPreset; label: string; viewMode: '2D' | '3D' }[] = [
   { id: 'FREE', label: 'Free View', viewMode: '3D' },
@@ -46,6 +47,7 @@ export const ViewportNavigation: React.FC<ViewportNavigationProps> = ({
     setCameraPreset,
     setViewMode,
     presentationMode,
+    settings,
   } = useStore();
 
   if (presentationMode) return null;
@@ -138,7 +140,7 @@ export const ViewportNavigation: React.FC<ViewportNavigationProps> = ({
             <NudgeBlock label="Move selected object by 10mm" step={10} onNudge={nudge} disabled={!selection} />
 
             <Panel title="Global Preferences & Settings" icon={Settings2}>
-              <ActionRow label="Project Units" keys="1 mm" />
+              <ActionRow label="Project Units" keys={unitLabel(settings.unitSystem)} />
               <ActionRow label="Selection" keys={selection ? selection.type : 'None'} />
               <ActionRow label="Shortcuts" keys="F, Esc, Arrows" />
             </Panel>

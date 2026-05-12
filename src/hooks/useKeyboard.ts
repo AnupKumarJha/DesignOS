@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore';
 import { useStore as useZustandStore } from 'zustand';
 
 export const useKeyboard = () => {
-  const { setActiveTool, selection, furniture, updateFurniture, addFurniture, removeWall, removeFurniture, removeOpening } = useStore();
+  const { setActiveTool, selection, furniture, updateFurniture, addFurniture, deleteSelection } = useStore();
   const { undo, redo } = useZustandStore(useStore.temporal, (state: any) => state);
 
   useEffect(() => {
@@ -15,9 +15,7 @@ export const useKeyboard = () => {
       // Delete selection
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selection) {
-          if (selection.type === 'wall') removeWall(selection.id);
-          else if (selection.type === 'furniture') removeFurniture(selection.id);
-          else if (selection.type === 'opening') removeOpening(selection.id);
+          deleteSelection();
         }
       }
 
@@ -75,5 +73,5 @@ export const useKeyboard = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selection, furniture, removeWall, removeFurniture, removeOpening, undo, redo, setActiveTool, updateFurniture, addFurniture]);
+  }, [selection, furniture, deleteSelection, undo, redo, setActiveTool, updateFurniture, addFurniture]);
 };
