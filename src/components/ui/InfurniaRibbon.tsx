@@ -111,7 +111,7 @@ export const InfurniaRibbon: React.FC<InfurniaRibbonProps> = ({
         { label: 'Ceil.', icon: Box, disabled: true },
         { label: 'Tiling', icon: TableProperties, onClick: () => {
           setMaterialDrawerCategory('Flooring');
-          setMaterialDrawerOpen(true);
+          window.dispatchEvent(new CustomEvent('design-os:open-floor-tiling'));
         } },
       ],
     },

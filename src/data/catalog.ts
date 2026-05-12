@@ -39,6 +39,8 @@ export interface FurnitureCatalogItem {
   mountHeight?: number;  // default Y elevation in mm (0 = floor, 1500 = wall-mounted, etc.)
   modelUrl?: string;     // Optional optimized GLB/GLTF asset path for render mode
   thumbnailUrl?: string; // Optional catalog/render thumbnail
+  thumbnailKind?: 'generated' | 'photo' | 'swatch' | 'procedural';
+  generatedAssetId?: string;
   renderScale?: number;
   renderRotation?: [number, number, number];
   renderOffset?: [number, number, number];
@@ -68,6 +70,9 @@ export interface MaterialItem {
   sku?: string;
   finishType?: FinishType;
   imageUrl?: string;
+  thumbnailUrl?: string;
+  thumbnailKind?: 'generated' | 'photo' | 'swatch' | 'procedural';
+  generatedAssetId?: string;
   tags?: string[];
   pattern?: 'solid' | 'wood' | 'marble' | 'fabric' | 'brick' | 'tile' | 'concrete' | 'metal' | 'glass';
 }
@@ -911,6 +916,7 @@ export const materialCatalog: MaterialItem[] = [
   // ──────────────────────────────────────────────────────────────────
   // FLOORING — tiles, wood, vinyl, laminate
   // ──────────────────────────────────────────────────────────────────
+  { id: 'floor_clear_white', name: 'Clear White Floor', group: 'Flooring', color: '#ffffff', rate: 110, unit: 'sqft', brand: 'Design OS', sku: 'DO-FL-WHITE', finishType: 'Matte', pattern: 'solid', tags: ['white', 'clean', 'default', 'plain-floor'] },
   { id: 'floor_warm_beige', name: 'Warm Beige Tile', group: 'Flooring', color: '#e6c99d', rate: 120, unit: 'sqft', brand: 'Kajaria', sku: 'KJ-FL001', finishType: 'Matte', pattern: 'tile', tags: ['warm', 'neutral'] },
   { id: 'floor_vitrified', name: 'Vitrified Glossy', group: 'Flooring', color: '#f1f5f9', rate: 140, unit: 'sqft', brand: 'Somany', sku: 'SM-VG002', finishType: 'Glossy', pattern: 'tile', tags: ['white', 'shiny'] },
   { id: 'floor_grey_stone', name: 'Grey Stone Tile', group: 'Flooring', color: '#71717a', rate: 165, unit: 'sqft', brand: 'Nitco', sku: 'NT-GS003', finishType: 'Matte', pattern: 'tile', tags: ['stone', 'neutral'] },

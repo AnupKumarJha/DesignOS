@@ -47,7 +47,7 @@ export const RenderRoomKit: React.FC<RenderRoomKitProps> = ({
     <group>
       <mesh geometry={floorGeometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <meshPhysicalMaterial
-          color={floorMaterial?.color || (roomType === 'Bathroom' ? '#dbe2e7' : roomType === 'Kitchen' ? '#ece7dc' : '#d7b986')}
+          color={floorMaterial?.color || '#ffffff'}
           map={floorTexture}
           roughness={floorFinish.roughness}
           metalness={floorFinish.metalness}
@@ -56,21 +56,22 @@ export const RenderRoomKit: React.FC<RenderRoomKitProps> = ({
         />
       </mesh>
 
-      {/* subtle grout/plank lines */}
-      <group position={[bounds.centerX, 3, bounds.centerZ]}>
-        {Array.from({ length: Math.ceil(bounds.width / 600) + 1 }).map((_, idx) => (
-          <mesh key={`floor-x-${idx}`} position={[-bounds.width / 2 + idx * 600, 0, 0]} rotation={[0, 0, 0]}>
-            <boxGeometry args={[3, 3, bounds.depth]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.2} />
-          </mesh>
-        ))}
-        {Array.from({ length: Math.ceil(bounds.depth / 600) + 1 }).map((_, idx) => (
-          <mesh key={`floor-z-${idx}`} position={[0, 0, -bounds.depth / 2 + idx * 600]} rotation={[0, 0, 0]}>
-            <boxGeometry args={[bounds.width, 3, 3]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.16} />
-          </mesh>
-        ))}
-      </group>
+      {floorMaterial?.pattern === 'tile' && (
+        <group position={[bounds.centerX, 3, bounds.centerZ]}>
+          {Array.from({ length: Math.ceil(bounds.width / 600) + 1 }).map((_, idx) => (
+            <mesh key={`floor-x-${idx}`} position={[-bounds.width / 2 + idx * 600, 0, 0]} rotation={[0, 0, 0]}>
+              <boxGeometry args={[3, 3, bounds.depth]} />
+              <meshBasicMaterial color="#ffffff" transparent opacity={0.2} />
+            </mesh>
+          ))}
+          {Array.from({ length: Math.ceil(bounds.depth / 600) + 1 }).map((_, idx) => (
+            <mesh key={`floor-z-${idx}`} position={[0, 0, -bounds.depth / 2 + idx * 600]} rotation={[0, 0, 0]}>
+              <boxGeometry args={[bounds.width, 3, 3]} />
+              <meshBasicMaterial color="#ffffff" transparent opacity={0.16} />
+            </mesh>
+          ))}
+        </group>
+      )}
 
       {showCeiling && (
         <group>

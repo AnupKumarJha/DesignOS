@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { furnitureCatalog, materialCatalog, RoomType } from '../../data/catalog';
+import { CatalogVisualTile } from './CatalogVisualTile';
 
 interface CatalogItem {
   id: string;
@@ -291,6 +292,10 @@ export const CatalogSidebar: React.FC = () => {
                           item.category === 'FURNITURE'
                             ? mergedFurnitureCatalog.find((c) => c.id === item.id)
                             : undefined;
+                        const m =
+                          item.category === 'FINISHES'
+                            ? materialCatalog.find((c) => c.id === item.id)
+                            : undefined;
                         const isSelected =
                           item.category === 'ARCHITECTURE'
                             ? activeTool === item.tool
@@ -298,8 +303,16 @@ export const CatalogSidebar: React.FC = () => {
                             ? activeFinish === item.id
                             : selectedCatalogItem === item.id && activeTool === 'FURNITURE';
                         return (
-                          <button
+                          <CatalogVisualTile
                             key={item.id}
+                            id={item.id}
+                            name={item.name}
+                            category={item.category}
+                            tool={item.tool}
+                            furniture={f}
+                            material={m}
+                            selected={isSelected}
+                            draggable={item.category === 'FURNITURE'}
                             onClick={() => {
                               if (isSelected) {
                                 // Toggle off
@@ -314,31 +327,7 @@ export const CatalogSidebar: React.FC = () => {
                                 setActiveFinish(item.id);
                               }
                             }}
-                            className={cn(
-                              'flex flex-col items-center justify-center aspect-square rounded-xl bg-white border-2 border-transparent shadow-sm hover:shadow-md transition-all group p-2',
-                              isSelected && 'border-blue-500 ring-2 ring-blue-100',
-                            )}
-                          >
-                            <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform mb-2 overflow-hidden">
-                              {f?.thumbnailUrl || f?.sourceThumbnailUrl ? (
-                                <img
-                                  src={f.thumbnailUrl || f.sourceThumbnailUrl}
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <item.icon size={24} className="text-slate-600" />
-                              )}
-                            </div>
-                            <span className="text-[11px] font-bold text-slate-700 line-clamp-1 w-full text-center">
-                              {item.name}
-                            </span>
-                            {f?.brand && (
-                              <span className="text-[8px] font-bold text-slate-400 mt-0.5 line-clamp-1">
-                                {f.brand}
-                              </span>
-                            )}
-                          </button>
+                          />
                         );
                       })}
                     </div>

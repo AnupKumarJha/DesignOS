@@ -12,6 +12,7 @@ const cache = new Map<string, THREE.CanvasTexture>();
  */
 export function getMaterialTexture(material: MaterialItem | undefined): THREE.Texture | null {
   if (!material) return null;
+  if (material.tags?.includes('plain-floor')) return null;
   if (material.imageUrl) {
     // Photo-texture path (future M1c). Loader caches by URL.
     return loadImageTexture(material.imageUrl);

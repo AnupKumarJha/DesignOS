@@ -1,11 +1,13 @@
 import React from 'react';
-import { useStore, Wall, Furniture, UnitSystem } from '../../store/useStore';
+import { HingeType, useStore, Wall, Furniture, UnitSystem } from '../../store/useStore';
 import { X, Settings2, Trash2, ChevronDown, Layers, Ruler, Palette, Sparkles, ChevronRight, Move, RotateCw } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { furnitureCatalog, getCatalogItem, getMaterial, materialCatalog } from '../../data/catalog';
 import { getDistance } from '../../lib/math';
 import { getPatternStyle } from '../../lib/materialPattern';
 import { fromDisplayLength, toDisplayLength, unitLabel } from '../../lib/units';
+
+const HINGE_TYPES: HingeType[] = ['Auto', 'Concealed 110', 'Soft Close', 'Blum Clip Top', 'Piano', 'Lift Up'];
 
 export const PropertiesSidebar: React.FC = () => {
   const {
@@ -188,6 +190,7 @@ export const PropertiesSidebar: React.FC = () => {
                         height: variant.height,
                         shutterCount: variant.shutterCount,
                         drawerCount: variant.drawerCount,
+                        isCustomSize: false,
                       });
                     }
                   }}
@@ -199,6 +202,11 @@ export const PropertiesSidebar: React.FC = () => {
                       <option key={variant.id} value={variant.id}>{variant.label}</option>
                     ))}
                 </select>
+              </div>
+             )}
+             {(item as Furniture).isCustomSize && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-bold text-amber-800">
+                Custom size from canvas resize. Pick a catalog variant to reset to standard sizing.
               </div>
              )}
             </>
@@ -571,6 +579,50 @@ export const PropertiesSidebar: React.FC = () => {
                   <span className="text-[10px] text-slate-400 truncate max-w-[130px]">{value}</span>
                 </button>
               ))}
+            </div>
+          </Section>
+        )}
+
+        {isFurniture && (
+          <Section title="Hinges & Hardware" icon={Settings2}>
+            <div className="space-y-3">
+              <label className="block space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Hinge Type</span>
+                <select
+                  value={(item as Furniture).hingeType || 'Auto'}
+                  onChange={(event) => updateFurniture(item.id, { hingeType: event.target.value as HingeType })}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                >
+                  {HINGE_TYPES.map((hinge) => <option key={hinge} value={hinge}>{hinge}</option>)}
+                </select>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="space-y-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Side</span>
+                  <select
+                    value={(item as Furniture).hingeSide || 'auto'}
+                    onChange={(event) => updateFurniture(item.id, { hingeSide: event.target.value as Furniture['hingeSide'] })}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="left">Left</option>
+                    <option value="right">Right</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Count</span>
+                  <Input value={(item as Furniture).hingeCount ?? 2} onChange={(v) => updateFurniture(item.id, { hingeCount: Math.max(1, v) })} />
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <LabeledInput label="Top Offset (mm)" unitSystem="mm" valueMm={(item as Furniture).hingeOffsetTop ?? 110} onChange={(v) => updateFurniture(item.id, { hingeOffsetTop: v })} />
+                <LabeledInput label="Bottom Offset (mm)" unitSystem="mm" valueMm={(item as Furniture).hingeOffsetBottom ?? 110} onChange={(v) => updateFurniture(item.id, { hingeOffsetBottom: v })} />
+                <LabeledInput label="Bore Distance (mm)" unitSystem="mm" valueMm={(item as Furniture).hingeBoreDistance ?? 22} onChange={(v) => updateFurniture(item.id, { hingeBoreDistance: v })} />
+                <label className="space-y-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Open Angle (°)</span>
+                  <Input value={(item as Furniture).openAngle ?? 100} onChange={(v) => updateFurniture(item.id, { openAngle: Math.max(30, Math.min(170, v)) })} />
+                </label>
+              </div>
             </div>
           </Section>
         )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Rect, Group, Text, Line } from 'react-konva';
+import { Rect, Group, Text, Line, Circle } from 'react-konva';
 import { Furniture } from '../../store/useStore';
 import { COLORS } from '../../lib/constants';
 
@@ -8,10 +8,11 @@ interface Furniture2DProps {
   isSelected: boolean;
   onClick: () => void;
   onDragEnd?: (pos: { x: number; y: number }) => void;
+  onResize?: (updates: Partial<Pick<Furniture, 'width' | 'depth' | 'height'>>) => void;
   draggable?: boolean;
 }
 
-export const Furniture2D: React.FC<Furniture2DProps> = ({ item, isSelected, onClick, onDragEnd, draggable = true }) => {
+export const Furniture2D: React.FC<Furniture2DProps> = ({ item, isSelected, onClick, onDragEnd, onResize, draggable = true }) => {
   const label = item.catalogName || item.type.replaceAll('_', ' ');
   const drawerCount = item.drawerCount ?? 0;
   const shutterCount = item.shutterCount ?? 0;
@@ -87,15 +88,71 @@ export const Furniture2D: React.FC<Furniture2DProps> = ({ item, isSelected, onCl
       />
 
       {isSelected && (
-        <Rect
-          width={item.width + 10}
-          height={item.depth + 10}
-          offsetX={(item.width + 10) / 2}
-          offsetY={(item.depth + 10) / 2}
-          stroke={COLORS.SELECTION}
-          strokeWidth={1}
-          dash={[5, 5]}
-        />
+        <>
+          <Rect
+            width={item.width + 10}
+            height={item.depth + 10}
+            offsetX={(item.width + 10) / 2}
+            offsetY={(item.depth + 10) / 2}
+            stroke={COLORS.SELECTION}
+            strokeWidth={2}
+            dash={[10, 7]}
+            listening={false}
+          />
+          {[
+            [-1, -1],
+            [1, -1],
+            [-1, 1],
+            [1, 1],
+          ].map(([x, y]) => (
+            <Circle
+              key={`${x}-${y}`}
+              x={(item.width / 2) * x}
+              y={(item.depth / 2) * y}
+              radius={34}
+              fill="#ffffff"
+              stroke={COLORS.SELECTION}
+              strokeWidth={5}
+              draggable
+              onClick={(event) => { event.cancelBubble = true; }}
+              onDragMove={(event) => {
+                event.cancelBubble = true;
+                const nextX = Math.max(75, Math.abs(event.target.x()));
+                const nextY = Math.max(75, Math.abs(event.target.y()));
+                onResize?.({ width: nextX * 2, depth: nextY * 2 });
+              }}
+              onDragEnd={(event) => {
+                event.target.position({ x: (item.width / 2) * x, y: (item.depth / 2) * y });
+              }}
+            />
+          ))}
+          <Circle
+            x={0}
+            y={-item.depth / 2 - 130}
+            radius={30}
+            fill="#111827"
+            stroke="#ffffff"
+            strokeWidth={5}
+            draggable
+            onClick={(event) => { event.cancelBubble = true; }}
+            onDragMove={(event) => {
+              event.cancelBubble = true;
+              onResize?.({ height: Math.max(150, Math.round(item.height + (-event.target.y() - item.depth / 2 - 130) * 3)) });
+            }}
+            onDragEnd={(event) => {
+              event.target.position({ x: 0, y: -item.depth / 2 - 130 });
+            }}
+          />
+          <Text
+            text="H"
+            x={-18}
+            y={-item.depth / 2 - 146}
+            fontSize={34}
+            fill="#ffffff"
+            fontStyle="bold"
+            listening={false}
+          />
+        </>
       )}
     </Group>
   );

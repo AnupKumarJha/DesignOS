@@ -12,6 +12,7 @@ import { InfurniaRibbon } from './components/ui/InfurniaRibbon';
 import { ViewportNavigation } from './components/ui/ViewportNavigation';
 import { OutputsCenter } from './components/ui/OutputsCenter';
 import { CatalogAdminModal } from './components/ui/CatalogAdminModal';
+import { FloorTilingPanel } from './components/ui/FloorTilingPanel';
 import { useKeyboard } from './hooks/useKeyboard';
 import { cn } from './lib/utils';
 import {
@@ -29,6 +30,7 @@ export default function App() {
   const [outputsOpen, setOutputsOpen] = React.useState(false);
   const [catalogAdminOpen, setCatalogAdminOpen] = React.useState(false);
   const [viewportNavCollapsed, setViewportNavCollapsed] = React.useState(false);
+  const [floorTilingOpen, setFloorTilingOpen] = React.useState(false);
 
   // Register keyboard shortcuts
   useKeyboard();
@@ -36,11 +38,14 @@ export default function App() {
   useEffect(() => {
     const onUndo = () => undo();
     const onRedo = () => redo();
+    const onFloorTiling = () => setFloorTilingOpen(true);
     window.addEventListener('design-os:undo', onUndo);
     window.addEventListener('design-os:redo', onRedo);
+    window.addEventListener('design-os:open-floor-tiling', onFloorTiling);
     return () => {
       window.removeEventListener('design-os:undo', onUndo);
       window.removeEventListener('design-os:redo', onRedo);
+      window.removeEventListener('design-os:open-floor-tiling', onFloorTiling);
     };
   }, [undo, redo]);
 
@@ -126,6 +131,7 @@ export default function App() {
       )}
       <OutputsCenter open={outputsOpen} onClose={() => setOutputsOpen(false)} />
       <CatalogAdminModal open={catalogAdminOpen} onClose={() => setCatalogAdminOpen(false)} />
+      <FloorTilingPanel open={floorTilingOpen} onClose={() => setFloorTilingOpen(false)} />
 
       <main className="flex-1 flex overflow-hidden relative">
         {!presentationMode && <CatalogSidebar />}

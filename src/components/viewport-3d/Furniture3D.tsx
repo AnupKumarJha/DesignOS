@@ -14,9 +14,8 @@ interface Furniture3DProps {
   onClick?: () => void;
 }
 
-export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, renderMode = false, onClick }) => {
+export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, onClick }) => {
   const isWallCabinet = item.type === 'CABINET_WALL';
-  const hasSkirting = (item.skirtingHeight || 0) > 0;
 
   // Mount height: prefer catalog mountHeight (e.g. TV unit at 600, mirror at 1100,
   // chimney at 1700, wall cabinet at 1500), fall back to type-based default.
@@ -40,126 +39,16 @@ export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, rend
     return cloned;
   }, [material?.id, item.width, item.height]);
 
-  const shutters = [];
-  if (item.shutterCount && item.shutterCount > 0 && !item.drawerCount) {
-    const gap = 2;
-    const sWidth = (item.width - (item.shutterCount - 1) * gap) / item.shutterCount;
-    for (let i = 0; i < item.shutterCount; i++) {
-      shutters.push({
-        x: -item.width / 2 + sWidth / 2 + i * (sWidth + gap),
-        width: sWidth
-      });
-    }
-  }
-
-  if (renderMode || item.modelAssetId) {
-    return (
-      <RenderFurniture
-        item={item}
-        yPos={yPos}
-        texture={texture}
-        finish={finish}
-        color={item.color || material?.color || '#ffffff'}
-        isSelected={isSelected}
-        onClick={onClick}
-      />
-    );
-  }
-
   return (
-    <group 
-      position={[item.position.x, yPos, -item.position.y]} 
-      rotation={[0, -item.rotation * (Math.PI / 180), 0]}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.();
-      }}
-    >
-      {/* Carcass */}
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[item.width, item.height, item.depth]} />
-        <meshStandardMaterial
-          color={item.color || '#ffffff'}
-          map={texture}
-          metalness={finish.metalness}
-          roughness={finish.roughness}
-        />
-      </mesh>
-
-      {/* Skirting */}
-      {hasSkirting && (
-        <mesh position={[0, -(item.height / 2) - (item.skirtingHeight! / 2), 20]}>
-          <boxGeometry args={[item.width - 2, item.skirtingHeight!, item.depth - 40]} />
-          <meshStandardMaterial color="#475569" />
-        </mesh>
-      )}
-
-      {/* Shutters */}
-      {shutters.map((s, idx) => (
-        <group key={idx} position={[s.x, 0, item.depth / 2 + 2]}>
-          <mesh>
-            <boxGeometry args={[s.width, item.height - 4, 18]} />
-            <meshStandardMaterial
-              color={item.color || '#f1f5f9'}
-              map={texture}
-              metalness={finish.metalness}
-              roughness={finish.roughness}
-            />
-          </mesh>
-          {/* Handle Placeholder */}
-          {item.hasHandle && (
-            <mesh position={[s.width / 2 - 30, 0, 10]}>
-              <boxGeometry args={[10, 150, 10]} />
-              <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
-            </mesh>
-          )}
-        </group>
-      ))}
-
-      {/* Drawer fronts */}
-      {item.drawerCount && item.drawerCount > 0 && Array.from({ length: item.drawerCount }).map((_, idx) => {
-        const drawerHeight = (item.height - 8) / item.drawerCount;
-        return (
-          <group key={`drawer-${idx}`} position={[0, item.height / 2 - drawerHeight / 2 - idx * drawerHeight, item.depth / 2 + 2]}>
-            <mesh>
-              <boxGeometry args={[item.width - 4, drawerHeight - 4, 18]} />
-              <meshStandardMaterial
-                color={item.color || '#f1f5f9'}
-                map={texture}
-                metalness={finish.metalness}
-                roughness={finish.roughness}
-              />
-            </mesh>
-            {item.hasHandle && (
-              <mesh position={[0, 0, 10]}>
-                <boxGeometry args={[180, 10, 10]} />
-                <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
-              </mesh>
-            )}
-          </group>
-        );
-      })}
-
-      {item.shutterCount === 0 && (
-        <>
-          <mesh position={[0, item.height * 0.15, item.depth / 2 + 2]}>
-            <boxGeometry args={[item.width - 8, 12, 18]} />
-            <meshStandardMaterial color="#94a3b8" />
-          </mesh>
-          <mesh position={[0, -item.height * 0.15, item.depth / 2 + 2]}>
-            <boxGeometry args={[item.width - 8, 12, 18]} />
-            <meshStandardMaterial color="#94a3b8" />
-          </mesh>
-        </>
-      )}
-
-      {isSelected && (
-        <mesh>
-          <boxGeometry args={[item.width + 10, item.height + 10, item.depth + 10]} />
-          <meshStandardMaterial color={COLORS.SELECTION} transparent opacity={0.1} />
-        </mesh>
-      )}
-    </group>
+    <RenderFurniture
+      item={item}
+      yPos={yPos}
+      texture={texture}
+      finish={finish}
+      color={item.color || material?.color || '#ffffff'}
+      isSelected={isSelected}
+      onClick={onClick}
+    />
   );
 };
 
@@ -289,6 +178,8 @@ const RenderCabinet: React.FC<{ item: Furniture; materialProps: any; countertop?
   const isOpenUnit = (item.shutterCount ?? 1) === 0 || item.catalogItemId === 'open_unit';
   const isPullout = item.catalogItemId === 'pullout_unit';
   const isSink = item.type === 'SINK_UNIT' || item.catalogItemId === 'sink_unit';
+  const hingeCount = Math.max(1, item.hingeCount ?? (item.height > 1200 ? 3 : 2));
+  const openAngle = ((item.openAngle ?? 100) * Math.PI) / 180;
   const internalMaterial = getMaterial(item.internalMaterialId) || getMaterial('laminate_ash_grey');
   const internalFinish = getFinishProps(internalMaterial?.finishType);
   const internalTexture = useMemo(() => {
@@ -383,10 +274,16 @@ const RenderCabinet: React.FC<{ item: Furniture; materialProps: any; countertop?
         const x = drawerCount ? 0 : -item.width / 2 + 21 + w / 2 + idx * w;
         const y = drawerCount ? item.height / 2 - 26 - h / 2 - idx * h : 0;
         const zOpen = drawerCount || isPullout ? openAmount * item.depth * 0.45 : 0;
-        const doorSwing = !drawerCount && openAmount > 0 ? (idx % 2 === 0 ? -Math.PI / 2.8 : Math.PI / 2.8) * openAmount : 0;
+        const autoLeft = idx < count / 2;
+        const hingeSide = item.hingeSide === 'left' ? 'left' : item.hingeSide === 'right' ? 'right' : autoLeft ? 'left' : 'right';
+        const hingeSign = hingeSide === 'left' ? -1 : 1;
+        const doorSwing = !drawerCount && openAmount > 0 ? hingeSign * openAngle * openAmount : 0;
+        const pivotX = drawerCount ? x : x + hingeSign * (w / 2 - 5);
+        const panelX = drawerCount ? 0 : -hingeSign * (w / 2 - 5);
+        const handleX = drawerCount ? 0 : panelX + hingeSign * -1 * Math.max(38, w * 0.16);
         return (
-          <group key={idx} position={[x, y, item.depth / 2 + 12 + zOpen]} rotation={[0, doorSwing, 0]}>
-            <RoundedBox args={[w - 10, h - 10, 22]} radius={10} smoothness={4} castShadow>
+          <group key={idx} position={[drawerCount ? x : pivotX, y, item.depth / 2 + 12 + zOpen]} rotation={[0, doorSwing, 0]}>
+            <RoundedBox position={[panelX, 0, 0]} args={[w - 10, h - 10, 22]} radius={10} smoothness={4} castShadow>
               <PhysicalMaterial {...materialProps} color={materialProps.color} />
             </RoundedBox>
             {drawerCount > 0 && openAmount > 0 && (
@@ -394,8 +291,29 @@ const RenderCabinet: React.FC<{ item: Furniture; materialProps: any; countertop?
                 {internalMaterialNode()}
               </RoundedBox>
             )}
+            {!drawerCount && Array.from({ length: hingeCount }).map((_, hingeIdx) => {
+              const top = item.hingeOffsetTop ?? 110;
+              const bottom = item.hingeOffsetBottom ?? 110;
+              const span = Math.max(1, h - top - bottom);
+              const hingeY = h / 2 - top - (hingeCount === 1 ? span / 2 : (span / (hingeCount - 1)) * hingeIdx);
+              const bore = item.hingeBoreDistance ?? 22;
+              const hardwareColor = item.hingeType === 'Piano' ? '#71717a' : '#c0a16b';
+              return (
+                <group key={hingeIdx} position={[0, hingeY, 20]}>
+                  <RoundedBox args={[18, item.hingeType === 'Piano' ? h - 50 : 72, 18]} radius={5} smoothness={3} castShadow>
+                    <meshPhysicalMaterial color={hardwareColor} metalness={0.72} roughness={0.2} />
+                  </RoundedBox>
+                  {item.hingeType !== 'Piano' && (
+                    <mesh position={[panelX + hingeSign * bore, 0, 4]} rotation={[Math.PI / 2, 0, 0]}>
+                      <cylinderGeometry args={[18, 18, 8, 24]} />
+                      <meshPhysicalMaterial color={hardwareColor} metalness={0.68} roughness={0.18} />
+                    </mesh>
+                  )}
+                </group>
+              );
+            })}
             {item.hasHandle && (
-              <RoundedBox position={[drawerCount ? 0 : w / 2 - 46, 0, 18]} args={[drawerCount ? Math.min(220, item.width * 0.38) : 12, drawerCount ? 12 : 190, 12]} radius={5} smoothness={3} castShadow>
+              <RoundedBox position={[handleX, 0, 18]} args={[drawerCount ? Math.min(220, item.width * 0.38) : 12, drawerCount ? 12 : 190, 12]} radius={5} smoothness={3} castShadow>
                 <meshPhysicalMaterial color="#d4af7a" metalness={0.65} roughness={0.18} />
               </RoundedBox>
             )}

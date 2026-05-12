@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { temporal } from 'zundo';
-import type { FurnitureCatalogItem } from '../data/catalog';
+import { getCatalogItem, type FurnitureCatalogItem } from '../data/catalog';
 
 export interface Point {
   x: number;
@@ -86,6 +86,14 @@ export interface Furniture {
   internalMaterialId?: string;
   partMaterials?: Record<string, string>;
   selectedPart?: string;
+  isCustomSize?: boolean;
+  hingeType?: HingeType;
+  hingeSide?: 'left' | 'right' | 'auto';
+  hingeCount?: number;
+  hingeOffsetTop?: number;
+  hingeOffsetBottom?: number;
+  hingeBoreDistance?: number;
+  openAngle?: number;
 }
 
 export interface BackgroundPlan {
@@ -106,10 +114,12 @@ export interface Room {
   floor: string;       // 'Ground Floor', '1st Floor'
   createdAt: string;
   backgroundPlan?: BackgroundPlan | null;
+  floorMaterialId?: string;
 }
 
 export type ViewMode = '2D' | '3D' | 'SPLIT';
 export type UnitSystem = 'mm' | 'feet' | 'inches';
+export type HingeType = 'Auto' | 'Concealed 110' | 'Soft Close' | 'Blum Clip Top' | 'Piano' | 'Lift Up';
 export type CameraPreset = 'FREE' | 'TOP' | 'FRONT' | 'SIDE' | 'ISLAND_FRONT';
 export type WorkspaceMode = 'DASHBOARD' | 'DESIGN';
 export type Tool = 'SELECT' | 'WALL' | 'FURNITURE' | 'WINDOW' | 'DOOR' | 'DELETE' | 'APPLY_FINISH';
@@ -216,6 +226,7 @@ interface AppState {
   addFurniture: (item: Furniture) => void;
   removeFurniture: (id: string) => void;
   updateFurniture: (id: string, updates: Partial<Furniture>) => void;
+  resizeFurniture: (id: string, dimensions: Partial<Pick<Furniture, 'width' | 'depth' | 'height'>>) => void;
   deleteSelection: () => void;
 
   setSelection: (selection: { id: string, type: 'wall' | 'furniture' | 'opening' } | null) => void;
@@ -246,6 +257,7 @@ interface AppState {
   renameRoom: (roomId: string, name: string) => void;
   removeRoom: (roomId: string) => void;
   updateRoomBackground: (roomId: string, plan: BackgroundPlan | null) => void;
+  updateRoomFloorMaterial: (roomId: string, materialId: string | null) => void;
 
   clearAll: () => void;
 }
@@ -269,9 +281,23 @@ const createProject = (): ProjectMeta => {
 
 const createDefaultSettings = (): ProjectSettings => ({
   unitSystem: 'mm',
-  defaultFloorMaterialId: 'floor_warm_beige',
+  defaultFloorMaterialId: 'floor_clear_white',
   defaultWallHeight: 2700,
   defaultWallThickness: 150,
+});
+
+const tagFurnitureDefaults = (item: Furniture): Furniture => ({
+  ...item,
+  openState: item.openState ?? 'closed',
+  openAmount: item.openAmount ?? 0,
+  hingeType: item.hingeType ?? 'Auto',
+  hingeSide: item.hingeSide ?? 'auto',
+  hingeCount: item.hingeCount ?? Math.max(2, item.height > 1200 ? 3 : 2),
+  hingeOffsetTop: item.hingeOffsetTop ?? 110,
+  hingeOffsetBottom: item.hingeOffsetBottom ?? 110,
+  hingeBoreDistance: item.hingeBoreDistance ?? 22,
+  openAngle: item.openAngle ?? 100,
+  isCustomSize: item.isCustomSize ?? false,
 });
 
 const createDefaultRoom = (project: ProjectMeta): Room => ({
@@ -281,16 +307,25 @@ const createDefaultRoom = (project: ProjectMeta): Room => ({
   building: project.building || 'Building 1',
   floor: project.floor || 'Ground Floor',
   createdAt: new Date().toISOString(),
+  floorMaterialId: undefined,
 });
+
+const normalizeFloorMaterialId = (materialId?: string | null) =>
+  materialId === 'floor_warm_beige' ? 'floor_clear_white' : materialId ?? undefined;
 
 /**
  * Migrates a snapshot from earlier schema (v1/v2) to v3, ensuring
  * `rooms`, `currentRoomId`, and `roomId` on every entity are present.
  */
 const migrateSnapshot = (snapshot: DesignSnapshot): DesignSnapshot => {
+  const rawSettings = (snapshot as any).settings ?? {};
   const settings = {
     ...createDefaultSettings(),
-    ...((snapshot as any).settings ?? {}),
+    ...rawSettings,
+    defaultFloorMaterialId:
+      !rawSettings.defaultFloorMaterialId || rawSettings.defaultFloorMaterialId === 'floor_warm_beige'
+        ? 'floor_clear_white'
+        : rawSettings.defaultFloorMaterialId,
   };
   const hasRooms = Array.isArray((snapshot as any).rooms) && (snapshot as any).rooms.length > 0;
   if (hasRooms && snapshot.currentRoomId) {
@@ -298,11 +333,8 @@ const migrateSnapshot = (snapshot: DesignSnapshot): DesignSnapshot => {
       ...snapshot,
       schemaVersion: 4,
       settings,
-      furniture: snapshot.furniture.map((item) => ({
-        ...item,
-        openState: item.openState ?? 'closed',
-        openAmount: item.openAmount ?? 0,
-      })),
+      rooms: snapshot.rooms.map((room) => ({ ...room, floorMaterialId: normalizeFloorMaterialId((room as any).floorMaterialId) })),
+      furniture: snapshot.furniture.map(tagFurnitureDefaults),
     };
   }
   const legacyRoom = createDefaultRoom(snapshot.project);
@@ -315,11 +347,7 @@ const migrateSnapshot = (snapshot: DesignSnapshot): DesignSnapshot => {
     currentRoomId: legacyRoom.id,
     walls: snapshot.walls.map(tag),
     openings: snapshot.openings.map(tag),
-    furniture: snapshot.furniture.map((item) => ({
-      ...tag(item),
-      openState: item.openState ?? 'closed',
-      openAmount: item.openAmount ?? 0,
-    })),
+    furniture: snapshot.furniture.map((item) => tagFurnitureDefaults(tag(item))),
   };
 };
 
@@ -445,10 +473,8 @@ export const useStore = create<AppState>()(
 
       addFurniture: (item) => set((state) => ({
         furniture: [...state.furniture, {
-          ...item,
+          ...tagFurnitureDefaults(item),
           roomId: item.roomId || state.currentRoomId,
-          openState: item.openState ?? 'closed',
-          openAmount: item.openAmount ?? 0,
         }],
         project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
@@ -462,6 +488,31 @@ export const useStore = create<AppState>()(
       updateFurniture: (id, updates) => set((state) => ({
         furniture: state.furniture.map((f) => f.id === id ? { ...f, ...updates } : f),
         project: { ...state.project, updatedAt: new Date().toISOString() }
+      })),
+
+      resizeFurniture: (id, dimensions) => set((state) => ({
+        furniture: state.furniture.map((f) => {
+          if (f.id !== id) return f;
+          const next = {
+            ...f,
+            ...Object.fromEntries(
+              Object.entries(dimensions).map(([key, value]) => [
+                key,
+                Math.max(150, Math.min(5000, Number(value) || (f as any)[key])),
+              ]),
+            ),
+          };
+          const variant = getCatalogItem(next.catalogItemId)?.variants.find(
+            (entry) => entry.width === next.width && entry.depth === next.depth && entry.height === next.height,
+          );
+          return {
+            ...next,
+            variantId: variant?.id ?? next.variantId,
+            catalogVariantLabel: variant?.label ?? next.catalogVariantLabel,
+            isCustomSize: !variant,
+          };
+        }),
+        project: { ...state.project, updatedAt: new Date().toISOString() },
       })),
 
       deleteSelection: () => set((state) => {
@@ -566,6 +617,13 @@ export const useStore = create<AppState>()(
       updateRoomBackground: (roomId, plan) => set((state) => ({
         rooms: state.rooms.map((r) =>
           r.id === roomId ? { ...r, backgroundPlan: plan } : r,
+        ),
+        project: { ...state.project, updatedAt: new Date().toISOString() },
+      })),
+
+      updateRoomFloorMaterial: (roomId, materialId) => set((state) => ({
+        rooms: state.rooms.map((r) =>
+          r.id === roomId ? { ...r, floorMaterialId: materialId ?? undefined } : r,
         ),
         project: { ...state.project, updatedAt: new Date().toISOString() },
       })),

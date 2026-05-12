@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { ContactShadows, Environment, Grid, GizmoHelper, GizmoViewport, OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
 import { Bloom, EffectComposer, SSAO, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -20,6 +20,7 @@ import {
 } from '../../lib/rendering';
 import { RenderRoomKit } from './RenderRoomKit';
 import { RenderToolbar } from './RenderToolbar';
+import { createFurnitureFromCatalog, FURNITURE_DRAG_MIME } from '../../lib/furnitureFactory';
 
 interface Scene3DProps {
   cameraPreset?: CameraPreset;
@@ -32,6 +33,8 @@ const cameraLabels: Record<CameraPreset, string> = {
   SIDE: 'Side Elevation',
   ISLAND_FRONT: 'Island Front Render',
 };
+
+type FloorDropProjector = (clientX: number, clientY: number) => { x: number; y: number } | null;
 
 const isOrthographic: Record<CameraPreset, boolean> = {
   FREE: false,
@@ -53,6 +56,8 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
     activeFinish,
     updateWall,
     updateFurniture,
+    addFurniture,
+    customCatalogItems,
     removeWall,
     removeFurniture,
     setCameraPreset,
@@ -65,11 +70,14 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
     showLights,
     rooms,
     settings,
+    updateRoomFloorMaterial,
   } = useStore();
   const walls = allWalls.filter((w) => w.roomId === currentRoomId);
   const furniture = allFurniture.filter((f) => f.roomId === currentRoomId);
   const openings = allOpenings.filter((o) => o.roomId === currentRoomId);
   const currentRoom = rooms.find((room) => room.id === currentRoomId);
+  const floorMaterialId = currentRoom?.floorMaterialId || settings.defaultFloorMaterialId;
+  const floorMaterial = getMaterial(floorMaterialId);
   const renderRoomType = inferRenderRoomType(currentRoom, activeRenderRoomType);
   const renderBounds = useMemo(() => getRoomBounds(walls, furniture), [walls, furniture]);
 
@@ -126,6 +134,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
     : [sceneBounds.centerX, 0, sceneBounds.centerZ];
   const orbitRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const floorDropProjectorRef = useRef<FloorDropProjector | null>(null);
 
   // Re-target controls whenever the scene bounds change so the orbit pivot
   // stays at the room's centroid even after editing.
@@ -145,9 +154,39 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
       .toLowerCase();
     downloadCanvasPng(canvas, name);
   };
+  const handleCatalogDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const catalogItemId = event.dataTransfer.getData(FURNITURE_DRAG_MIME) || event.dataTransfer.getData('text/plain');
+    if (!catalogItemId || !containerRef.current) return;
+    event.preventDefault();
+    const raycastPosition = floorDropProjectorRef.current?.(event.clientX, event.clientY);
+    const rect = containerRef.current.getBoundingClientRect();
+    const relX = (event.clientX - rect.left) / rect.width - 0.5;
+    const relY = (event.clientY - rect.top) / rect.height - 0.5;
+    const pos = raycastPosition ?? {
+      x: renderBounds.centerX + relX * renderBounds.size * 1.75,
+      y: -renderBounds.centerZ + relY * renderBounds.size * 1.35,
+    };
+    const next = createFurnitureFromCatalog({
+      catalogItemId,
+      roomId: currentRoomId,
+      position: pos,
+      walls,
+      customCatalogItems,
+    });
+    if (!next) return;
+    addFurniture(next);
+    setSelection({ id: next.id, type: 'furniture' });
+  };
 
   return (
-    <div ref={containerRef} className={cn("w-full h-full relative", presentationMode ? "bg-[#f5efe6]" : "bg-slate-50")}>
+    <div
+      ref={containerRef}
+      className={cn("w-full h-full relative", presentationMode ? "bg-[#f5efe6]" : "bg-slate-50")}
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes(FURNITURE_DRAG_MIME)) event.preventDefault();
+      }}
+      onDrop={handleCatalogDrop}
+    >
       <Canvas
         shadows
         gl={{
@@ -166,6 +205,8 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
         }}
       >
+        <FloorDropProjectorBridge projectorRef={floorDropProjectorRef} />
+
         {orthographic ? (
           <OrthographicCamera key={cameraPreset} makeDefault position={cameraPosition} zoom={0.08} near={1} far={100000} />
         ) : (
@@ -178,7 +219,16 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
           minDistance={presentationMode ? 600 : 1000}
           maxDistance={100000}
           enableRotate={presentationMode || cameraPreset !== 'TOP'}
-          enablePan={!presentationMode}
+          enablePan
+          mouseButtons={{
+            LEFT: THREE.MOUSE.PAN,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE,
+          }}
+          touches={{
+            ONE: THREE.TOUCH.PAN,
+            TWO: THREE.TOUCH.DOLLY_ROTATE,
+          }}
           maxPolarAngle={presentationMode ? Math.PI * 0.62 : Math.PI}
         />
         
@@ -210,7 +260,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
               showCeiling={showCeiling}
               showDecor={showDecor}
               showLights={showLights}
-              floorMaterialId={settings.defaultFloorMaterialId}
+              floorMaterialId={floorMaterialId}
             />
             <ContactShadows
               position={[renderBounds.centerX, 8, renderBounds.centerZ]}
@@ -239,7 +289,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
           <FloorSurface
             bounds={renderBounds}
             walls={walls}
-            materialId={settings.defaultFloorMaterialId}
+            materialId={floorMaterialId}
             infinite
           />
         )}
@@ -285,11 +335,12 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
                 if (activeTool === 'APPLY_FINISH' && activeFinish) {
                   const material = getMaterial(activeFinish);
                   updateFurniture(item.id, { color: material?.color, materialId: material?.id });
-                } else if (selection?.type === 'furniture' && selection.id === item.id && isOpenableFurniture(item)) {
-                  const nextOpen = item.openState === 'open' ? 'closed' : 'open';
-                  updateFurniture(item.id, { openState: nextOpen, openAmount: nextOpen === 'open' ? 1 : 0 });
                 } else {
                   setSelection({ id: item.id, type: 'furniture' });
+                  if (isOpenableFurniture(item)) {
+                    const nextOpen = item.openState === 'open' ? 'closed' : 'open';
+                    updateFurniture(item.id, { openState: nextOpen, openAmount: nextOpen === 'open' ? 1 : 0 });
+                  }
                 }
               }}
             />
@@ -311,6 +362,35 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
       </Canvas>
 
       {presentationMode && <RenderToolbar onCapture={captureRender} />}
+
+      {!presentationMode && (
+        <div className="absolute right-5 top-5 z-30 flex items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 py-2 shadow-lg backdrop-blur">
+          <div
+            className="h-8 w-8 rounded-lg border border-slate-200 shadow-inner"
+            style={{ backgroundColor: floorMaterial?.color || '#ffffff' }}
+          />
+          <div className="min-w-0">
+            <div className="text-[9px] font-black uppercase tracking-widest text-slate-400">Floor</div>
+            <div className="max-w-[150px] truncate text-[11px] font-black text-slate-800">
+              {floorMaterial?.name || 'Clear White Floor'}
+            </div>
+          </div>
+          <button
+            onClick={() => updateRoomFloorMaterial(currentRoomId, 'floor_clear_white')}
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-slate-600 shadow-sm hover:border-blue-200 hover:text-blue-700"
+            title="Set current room floor to clear white"
+          >
+            White
+          </button>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('design-os:open-floor-tiling'))}
+            className="rounded-lg border border-blue-600 bg-blue-600 px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm hover:bg-blue-700"
+            title="Choose a floor material"
+          >
+            Change
+          </button>
+        </div>
+      )}
 
       {!presentationMode && <div className="absolute right-5 bottom-16 z-20 w-16 h-16 rounded-full bg-slate-700/80 text-white shadow-xl border border-white/40 flex items-center justify-center text-[11px] font-black">
         {cameraPreset === 'SIDE' ? 'RIGHT' : cameraPreset === 'FRONT' ? 'FRONT' : cameraPreset === 'TOP' ? 'TOP' : '3D'}
@@ -356,6 +436,33 @@ const isOpenableFurniture = (item: { type: string; catalogItemId?: string; drawe
   (item.drawerCount ?? 0) > 0 ||
   (item.shutterCount ?? 0) > 0;
 
+const FloorDropProjectorBridge: React.FC<{
+  projectorRef: React.MutableRefObject<FloorDropProjector | null>;
+}> = ({ projectorRef }) => {
+  const { camera, gl } = useThree();
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const pointer = useMemo(() => new THREE.Vector2(), []);
+  const floorPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), []);
+  const hit = useMemo(() => new THREE.Vector3(), []);
+
+  useEffect(() => {
+    projectorRef.current = (clientX, clientY) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const intersection = raycaster.ray.intersectPlane(floorPlane, hit);
+      if (!intersection) return null;
+      return { x: intersection.x, y: -intersection.z };
+    };
+    return () => {
+      projectorRef.current = null;
+    };
+  }, [camera, floorPlane, gl.domElement, hit, pointer, projectorRef, raycaster]);
+
+  return null;
+};
+
 const FloorSurface: React.FC<{
   bounds: RoomBounds;
   walls: Wall[];
@@ -384,7 +491,7 @@ const FloorSurface: React.FC<{
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[bounds.centerX, -2, bounds.centerZ]} receiveShadow>
         <planeGeometry args={[Math.max(bounds.size * 2.4, 10000), Math.max(bounds.size * 2.4, 10000)]} />
         <meshPhysicalMaterial
-          color={material?.color || '#e7d2a4'}
+          color={material?.color || '#ffffff'}
           map={texture}
           roughness={finish.roughness}
           metalness={finish.metalness}
@@ -401,7 +508,7 @@ const FloorSurface: React.FC<{
   return (
     <mesh geometry={geometry ?? undefined} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
       <meshPhysicalMaterial
-        color={material?.color || '#e7d2a4'}
+        color={material?.color || '#ffffff'}
         map={texture}
         roughness={finish.roughness}
         metalness={finish.metalness}

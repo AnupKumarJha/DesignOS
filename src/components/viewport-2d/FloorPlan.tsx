@@ -9,8 +9,9 @@ import { BackgroundPlanLayer } from './BackgroundPlanLayer';
 import { FloorPlanImportPanel } from '../ui/FloorPlanImportPanel';
 import { snapToGrid, snapToAngle, findClosestPoint, getClosestPointOnSegment, getDistance } from '../../lib/math';
 import { DEFAULT_WALL_HEIGHT, DEFAULT_WALL_THICKNESS } from '../../lib/constants';
-import { getCatalogItem, getMaterial, getVariant } from '../../data/catalog';
+import { getMaterial } from '../../data/catalog';
 import { formatLength } from '../../lib/units';
+import { createFurnitureFromCatalog, FURNITURE_DRAG_MIME } from '../../lib/furnitureFactory';
 
 export const FloorPlan: React.FC = () => {
   const {
@@ -29,6 +30,7 @@ export const FloorPlan: React.FC = () => {
     updateWall,
     addFurniture,
     updateFurniture,
+    resizeFurniture,
     addOpening,
     updateOpening,
     setSelection,
@@ -151,55 +153,13 @@ export const FloorPlan: React.FC = () => {
   }, [dimensions.height, dimensions.width, furniture, selection, walls]);
 
   const getFurnitureDraft = (position: Point): Furniture => {
-    const catalogItem =
-      getCatalogItem(selectedCatalogItem) ||
-      mergedFurnitureCatalog.find((item) => item.id === selectedCatalogItem) ||
-      getCatalogItem('cabinet_base')!;
-    const variant =
-      getVariant(catalogItem.id, catalogItem.defaultVariantId) ||
-      catalogItem.variants.find((entry) => entry.id === catalogItem.defaultVariantId) ||
-      catalogItem.variants[0];
-    let snappedPos = snapToGrid(position, 50);
-    let rotation = 0;
-    
-    let minSnapDist = 100;
-    for (const wall of walls) {
-      const { point } = getClosestPointOnSegment(position, wall.start, wall.end);
-      const dist = getDistance(position, point);
-      
-      if (dist < minSnapDist) {
-        minSnapDist = dist;
-        snappedPos = point;
-        rotation = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x) * (180 / Math.PI) + 90;
-      }
-    }
-
-    return {
-      id: crypto.randomUUID(),
+    return createFurnitureFromCatalog({
+      catalogItemId: selectedCatalogItem || 'cabinet_base',
       roomId: currentRoomId,
-      type: catalogItem.type,
-      position: snappedPos,
-      rotation,
-      width: variant.width,
-      depth: variant.depth,
-      height: variant.height,
-      color: '#ffffff',
-      catalogItemId: catalogItem.id,
-      variantId: variant.id,
-      shutterCount: variant.shutterCount,
-      drawerCount: variant.drawerCount,
-      hasHandle: catalogItem.hasHandle,
-      skirtingHeight: catalogItem.skirtingHeight,
-      catalogName: catalogItem.name,
-      catalogBrand: catalogItem.brand,
-      catalogSku: catalogItem.sku,
-      catalogVariantLabel: variant.label,
-      modelAssetId: catalogItem.modelAssetId,
-      thumbnailAssetId: catalogItem.thumbnailAssetId,
-      assetFormat: catalogItem.assetFormat,
-      sourceUrl: catalogItem.sourceUrl,
-      licenseNote: catalogItem.licenseNote,
-    };
+      position,
+      walls,
+      customCatalogItems: mergedFurnitureCatalog,
+    })!;
   };
 
   const roomPolygon = (() => {
@@ -442,8 +402,37 @@ export const FloorPlan: React.FC = () => {
     setOffset(newPos);
   };
 
+  const handleCatalogDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const catalogItemId = event.dataTransfer.getData(FURNITURE_DRAG_MIME) || event.dataTransfer.getData('text/plain');
+    if (!catalogItemId || !containerRef.current) return;
+    event.preventDefault();
+    const rect = containerRef.current.getBoundingClientRect();
+    const pos = {
+      x: (event.clientX - rect.left - offset.x) / scale,
+      y: (event.clientY - rect.top - offset.y) / scale,
+    };
+    const next = createFurnitureFromCatalog({
+      catalogItemId,
+      roomId: currentRoomId,
+      position: pos,
+      walls,
+      customCatalogItems: mergedFurnitureCatalog,
+    });
+    if (!next) return;
+    addFurniture(next);
+    setSelection({ id: next.id, type: 'furniture' });
+    setActiveTool('SELECT');
+  };
+
   return (
-    <div ref={containerRef} className="w-full h-full bg-white overflow-hidden">
+    <div
+      ref={containerRef}
+      className="w-full h-full bg-white overflow-hidden"
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes(FURNITURE_DRAG_MIME)) event.preventDefault();
+      }}
+      onDrop={handleCatalogDrop}
+    >
       <Stage
         width={dimensions.width}
         height={dimensions.height}
@@ -503,6 +492,7 @@ export const FloorPlan: React.FC = () => {
                 isSelected={selection?.id === item.id}
                 onClick={() => handleFurnitureClick(item)}
                 onDragEnd={(pos) => updateFurniture(item.id, { position: pos })}
+                onResize={(updates) => resizeFurniture(item.id, updates)}
               />
             ))}
           </Group>
