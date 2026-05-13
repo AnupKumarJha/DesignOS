@@ -186,6 +186,7 @@ const RenderCabinet: React.FC<{
   onPartClick?: (partId: string) => void;
 }> = ({ item, materialProps, renderMode, onPartClick }) => {
   const parts = useMemo(() => generateFurnitureParts(item), [item]);
+  const partById = useMemo(() => new Map(parts.map((part) => [part.id, part])), [parts]);
   const openAmount = item.openState === 'open' ? (item.openAmount ?? 1) : 0;
   const selectedPartId = item.selectedPartId;
   return (
@@ -195,6 +196,7 @@ const RenderCabinet: React.FC<{
           key={part.id}
           item={item}
           part={part}
+          partById={partById}
           openAmount={openAmount}
           materialProps={materialProps}
           selected={selectedPartId === part.id}
@@ -215,15 +217,17 @@ const RenderCabinet: React.FC<{
 const FurniturePartMesh: React.FC<{
   item: Furniture;
   part: FurniturePart;
+  partById: Map<string, FurniturePart>;
   openAmount: number;
   materialProps: any;
   selected: boolean;
   renderMode: boolean;
   onPartClick?: (partId: string) => void;
-}> = ({ item, part, openAmount, materialProps, selected, renderMode, onPartClick }) => {
+}> = ({ item, part, partById, openAmount, materialProps, selected, renderMode, onPartClick }) => {
   if (part.visible === false) return null;
-  const isRound = ['hanging_rod', 'handle'].includes(part.type) && part.size.height === part.size.depth;
-  const transform = getPartTransform(item, part, openAmount);
+  if (part.type === 'handle' && part.handleType === 'none') return null;
+  const isRound = ['hanging_rod', 'handle'].includes(part.type) && part.size.height === part.size.depth && part.handleType !== 'edge_pull';
+  const transform = getPartTransform(item, part, openAmount, partById);
   const radius = partRadius(part, renderMode);
   return (
     <group
@@ -234,14 +238,19 @@ const FurniturePartMesh: React.FC<{
         onPartClick?.(part.id);
       }}
     >
-      {isRound ? (
+      {part.type === 'handle' && part.handleType === 'knob' ? (
+        <mesh castShadow receiveShadow>
+          <sphereGeometry args={[Math.max(12, part.size.depth * 0.7), 24, 16]} />
+          <PartMaterial item={item} part={part} materialProps={materialProps} renderMode={renderMode} />
+        </mesh>
+      ) : isRound ? (
         <mesh rotation={[0, 0, Math.PI / 2]} castShadow receiveShadow>
           <cylinderGeometry args={[part.size.height / 2, part.size.height / 2, part.size.width, 28]} />
-          <PartMaterial part={part} materialProps={materialProps} renderMode={renderMode} />
+          <PartMaterial item={item} part={part} materialProps={materialProps} renderMode={renderMode} />
         </mesh>
       ) : (
         <RoundedBox args={[part.size.width, part.size.height, part.size.depth]} radius={radius} smoothness={renderMode ? 6 : 4} castShadow receiveShadow>
-          <PartMaterial part={part} materialProps={materialProps} renderMode={renderMode} />
+          <PartMaterial item={item} part={part} materialProps={materialProps} renderMode={renderMode} />
         </RoundedBox>
       )}
       {selected && (
@@ -253,8 +262,27 @@ const FurniturePartMesh: React.FC<{
   );
 };
 
-const PartMaterial: React.FC<{ part: FurniturePart; materialProps: any; renderMode: boolean }> = ({ part, materialProps, renderMode }) => {
-  const material = getMaterial(part.materialId);
+const PartMaterial: React.FC<{ item: Furniture; part: FurniturePart; materialProps: any; renderMode: boolean }> = ({ item, part, materialProps, renderMode }) => {
+  const role = part.materialRole ?? inferMaterialRole(part);
+  const roleMaterialId =
+    part.materialId ??
+    (role === 'interior'
+      ? item.internalMaterialId
+      : role === 'hardware'
+        ? item.hardwareMaterialId
+        : role === 'countertop'
+          ? part.materialId
+          : item.materialId);
+  const roleOverrideColor =
+    part.color ??
+    (role === 'interior'
+      ? item.interiorColor
+      : role === 'hardware'
+        ? item.hardwareColor
+        : role === 'exterior'
+          ? item.exteriorColor
+          : undefined);
+  const material = getMaterial(roleMaterialId);
   const finish = getFinishProps(material?.finishType);
   const texture = useMemo(() => {
     const source = getMaterialTexture(material);
@@ -268,8 +296,9 @@ const PartMaterial: React.FC<{ part: FurniturePart; materialProps: any; renderMo
     return cloned;
   }, [material?.id, material?.textureRepeatScale, part.size.width, part.size.height, renderMode]);
   const maps = useMemo(() => getMaterialPbrMaps(material), [material?.id]);
-  if (['handle', 'hinge', 'runner', 'hanging_rod', 'basket'].includes(part.type)) {
-    return <meshPhysicalMaterial color={material?.color || '#d4af7a'} metalness={part.metalness ?? 0.72} roughness={part.roughness ?? 0.18} clearcoat={0.45} clearcoatRoughness={0.14} />;
+  const resolvedColor = roleOverrideColor || material?.color || (role === 'exterior' ? item.color : undefined) || materialProps.color;
+  if (role === 'hardware') {
+    return <meshPhysicalMaterial color={resolvedColor || '#d4af7a'} metalness={part.metalness ?? 0.72} roughness={part.roughness ?? 0.18} clearcoat={0.45} clearcoatRoughness={0.14} />;
   }
   if (part.type === 'sink') {
     return <meshPhysicalMaterial color="#cbd5e1" metalness={0.22} roughness={0.2} clearcoat={0.65} clearcoatRoughness={0.12} />;
@@ -278,12 +307,12 @@ const PartMaterial: React.FC<{ part: FurniturePart; materialProps: any; renderMo
     return <meshStandardMaterial color="#1f2937" roughness={0.45} />;
   }
   if (part.type === 'countertop') {
-    return <meshPhysicalMaterial color={material?.color || '#111827'} map={texture} {...maps} roughness={0.14} metalness={0.02} clearcoat={0.9} clearcoatRoughness={0.08} />;
+    return <meshPhysicalMaterial color={resolvedColor || '#111827'} map={texture} {...maps} roughness={0.14} metalness={0.02} clearcoat={0.9} clearcoatRoughness={0.08} />;
   }
   return (
     <meshPhysicalMaterial
       {...materialProps}
-      color={material?.color || materialProps.color}
+      color={resolvedColor || materialProps.color}
       map={texture || materialProps.map}
       normalMap={maps.normalMap || materialProps.normalMap}
       roughnessMap={maps.roughnessMap || materialProps.roughnessMap}
@@ -296,7 +325,35 @@ const PartMaterial: React.FC<{ part: FurniturePart; materialProps: any; renderMo
   );
 };
 
-function getPartTransform(item: Furniture, part: FurniturePart, openAmount: number): { position: [number, number, number]; rotation: [number, number, number] } {
+function getPartTransform(
+  item: Furniture,
+  part: FurniturePart,
+  openAmount: number,
+  partById: Map<string, FurniturePart>,
+  visited = new Set<string>(),
+): { position: [number, number, number]; rotation: [number, number, number] } {
+  if (part.parentPartId && !visited.has(part.id)) {
+    const parent = partById.get(part.parentPartId);
+    if (parent) {
+      visited.add(part.id);
+      const parentTransform = getPartTransform(item, parent, openAmount, partById, visited);
+      const local = part.localPosition ?? {
+        x: part.position.x - parent.position.x,
+        y: part.position.y - parent.position.y,
+        z: part.position.z - parent.position.z,
+      };
+      const rotatedLocal = rotateY(local, parentTransform.rotation[1]);
+      return {
+        position: [
+          parentTransform.position[0] + rotatedLocal.x,
+          parentTransform.position[1] + rotatedLocal.y,
+          parentTransform.position[2] + rotatedLocal.z,
+        ],
+        rotation: [parentTransform.rotation[0], parentTransform.rotation[1], parentTransform.rotation[2]],
+      };
+    }
+  }
+
   const position: [number, number, number] = [part.position.x, part.position.y, part.position.z];
   const rotation: [number, number, number] = [0, 0, 0];
   if (part.mechanism === 'slide') {
@@ -306,14 +363,40 @@ function getPartTransform(item: Furniture, part: FurniturePart, openAmount: numb
     position[2] += openAmount * item.depth * 0.55;
   }
   if (part.mechanism === 'swing') {
-    const hingeSign = part.hingeSide === 'left' ? -1 : 1;
-    const pivotX = part.position.x + hingeSign * (part.size.width / 2 - 6);
-    position[0] = pivotX;
-    rotation[1] = hingeSign * ((item.openAngle ?? 100) * Math.PI / 180) * openAmount;
-    position[0] += -hingeSign * (part.size.width / 2 - 6) * Math.cos(rotation[1]);
-    position[2] += hingeSign * (part.size.width / 2 - 6) * Math.sin(rotation[1]);
+    const hingeOffsetX = part.hingeSide === 'left' ? -part.size.width / 2 + 6 : part.size.width / 2 - 6;
+    const doorCenterFromHinge = { x: -hingeOffsetX, y: 0, z: 0 };
+    const outwardSign = part.hingeSide === 'left' ? -1 : 1;
+    const angle = outwardSign * ((item.openAngle ?? 100) * Math.PI / 180) * openAmount;
+    const pivot = {
+      x: part.position.x + hingeOffsetX,
+      y: part.position.y,
+      z: part.position.z,
+    };
+    const rotatedCenter = rotateY(doorCenterFromHinge, angle);
+    position[0] = pivot.x + rotatedCenter.x;
+    position[1] = pivot.y + rotatedCenter.y;
+    position[2] = pivot.z + rotatedCenter.z;
+    rotation[1] = angle;
   }
   return { position, rotation };
+}
+
+function rotateY(point: { x: number; y: number; z: number }, angle: number) {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    x: point.x * cos + point.z * sin,
+    y: point.y,
+    z: -point.x * sin + point.z * cos,
+  };
+}
+
+function inferMaterialRole(part: FurniturePart): FurniturePart['materialRole'] {
+  if (['handle', 'hinge', 'runner', 'hanging_rod', 'basket'].includes(part.type)) return 'hardware';
+  if (['back_panel', 'shelf', 'vertical_partition', 'drawer_box'].includes(part.type)) return 'interior';
+  if (part.type === 'countertop') return 'countertop';
+  if (['sink', 'skirting', 'seat', 'backrest', 'leg', 'frame', 'mirror_glass'].includes(part.type)) return 'custom';
+  return 'exterior';
 }
 
 function partRadius(part: FurniturePart, renderMode: boolean) {

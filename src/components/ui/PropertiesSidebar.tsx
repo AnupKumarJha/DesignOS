@@ -9,6 +9,9 @@ import { fromDisplayLength, toDisplayLength, unitLabel } from '../../lib/units';
 import { FURNITURE_LAYOUT_PRESETS, generateFurnitureParts, partTypeLabel } from '../../lib/furnitureParts';
 
 const HINGE_TYPES: HingeType[] = ['Auto', 'Concealed 110', 'Soft Close', 'Blum Clip Top', 'Piano', 'Lift Up'];
+const FINISH_GROUPS = ['Laminate', 'Veneer', 'Solid Paints', 'Stone', 'Metal', 'Glass'];
+const BOARD_FINISH_GROUPS = ['Laminate', 'Veneer', 'Solid Paints'];
+const HARDWARE_GROUPS = ['Metal', 'Hardware'];
 
 export const PropertiesSidebar: React.FC = () => {
   const {
@@ -63,6 +66,28 @@ export const PropertiesSidebar: React.FC = () => {
     updateFurniture(furnitureItem.id, {
       parts: nextParts,
       selectedPartId: selectedFurniturePart.id,
+    });
+  };
+
+  const updatePartsByType = (predicate: (part: FurniturePart) => boolean, updates: Partial<FurniturePart>) => {
+    if (!isFurniture) return;
+    const nextParts = furnitureParts.map((part) => (predicate(part) ? { ...part, ...updates } : part));
+    updateFurniture((item as Furniture).id, { parts: nextParts });
+  };
+
+  const resetSelectedPartOverrides = () => {
+    if (!isFurniture || !selectedFurniturePart) return;
+    const furnitureItem = item as Furniture;
+    const freshPart = generateFurnitureParts({ ...furnitureItem, parts: [] }).find((part) => part.id === selectedFurniturePart.id);
+    updateSelectedPart({
+      materialId: undefined,
+      color: undefined,
+      visible: freshPart?.visible ?? true,
+      thickness: freshPart?.thickness ?? selectedFurniturePart.thickness,
+      position: freshPart?.position ?? selectedFurniturePart.position,
+      localPosition: freshPart?.localPosition,
+      size: freshPart?.size ?? selectedFurniturePart.size,
+      handleType: freshPart?.handleType,
     });
   };
 
@@ -453,8 +478,12 @@ export const PropertiesSidebar: React.FC = () => {
                     <span className="text-[11px] text-slate-600 font-medium">Handles</span>
                     <input 
                       type="checkbox" 
-                      checked={(item as any).hasHandle || false}
-                      onChange={(e) => updateFurniture(item.id, { hasHandle: e.target.checked })}
+                      checked={(item as Furniture).hasHandle !== false}
+                      onChange={(e) => {
+                        const visible = e.target.checked;
+                        updateFurniture(item.id, { hasHandle: visible });
+                        updatePartsByType((part) => part.type === 'handle', { visible });
+                      }}
                       className="accent-blue-600 h-3.5 w-3.5" 
                     />
                   </div>
@@ -579,14 +608,15 @@ export const PropertiesSidebar: React.FC = () => {
                 />
               </label>
               <label className="block space-y-1.5">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Interior Finish</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Exterior Finish</span>
                 <select
-                  value={(item as Furniture).internalMaterialId || 'laminate_ash_grey'}
-                  onChange={(event) => updateFurniture(item.id, { internalMaterialId: event.target.value })}
+                  value={(item as Furniture).materialId || ''}
+                  onChange={(event) => updateFurniture(item.id, { materialId: event.target.value || undefined })}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
                 >
+                  <option value="">Use catalog default</option>
                   {materialCatalog
-                    .filter((material) => ['Laminate', 'Veneer', 'Solid Paints'].includes(material.group))
+                    .filter((material) => FINISH_GROUPS.includes(material.group))
                     .map((material) => (
                       <option key={material.id} value={material.id}>
                         {material.name} · {material.group}
@@ -594,6 +624,57 @@ export const PropertiesSidebar: React.FC = () => {
                   ))}
                 </select>
               </label>
+              <ColorInput
+                label="Exterior Color"
+                value={(item as Furniture).exteriorColor || getMaterial((item as Furniture).materialId)?.color || (item as Furniture).color || '#cbd5e1'}
+                onChange={(value) => updateFurniture(item.id, { exteriorColor: value })}
+                onReset={() => updateFurniture(item.id, { exteriorColor: undefined })}
+              />
+              <label className="block space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Interior Finish</span>
+                <select
+                  value={(item as Furniture).internalMaterialId || 'laminate_ash_grey'}
+                  onChange={(event) => updateFurniture(item.id, { internalMaterialId: event.target.value })}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                >
+                  {materialCatalog
+                    .filter((material) => BOARD_FINISH_GROUPS.includes(material.group))
+                    .map((material) => (
+                      <option key={material.id} value={material.id}>
+                        {material.name} · {material.group}
+                      </option>
+                  ))}
+                </select>
+              </label>
+              <ColorInput
+                label="Interior Color"
+                value={(item as Furniture).interiorColor || getMaterial((item as Furniture).internalMaterialId || 'laminate_ash_grey')?.color || '#e2e8f0'}
+                onChange={(value) => updateFurniture(item.id, { interiorColor: value })}
+                onReset={() => updateFurniture(item.id, { interiorColor: undefined })}
+              />
+              <label className="block space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Hardware Finish</span>
+                <select
+                  value={(item as Furniture).hardwareMaterialId || ''}
+                  onChange={(event) => updateFurniture(item.id, { hardwareMaterialId: event.target.value || undefined })}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                >
+                  <option value="">Default brushed metal</option>
+                  {materialCatalog
+                    .filter((material) => HARDWARE_GROUPS.includes(material.group))
+                    .map((material) => (
+                      <option key={material.id} value={material.id}>
+                        {material.name} · {material.group}
+                      </option>
+                  ))}
+                </select>
+              </label>
+              <ColorInput
+                label="Hardware Color"
+                value={(item as Furniture).hardwareColor || getMaterial((item as Furniture).hardwareMaterialId)?.color || '#d4af7a'}
+                onChange={(value) => updateFurniture(item.id, { hardwareColor: value })}
+                onReset={() => updateFurniture(item.id, { hardwareColor: undefined })}
+              />
               <label className="block space-y-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Internal Layout</span>
                 <select
@@ -616,6 +697,28 @@ export const PropertiesSidebar: React.FC = () => {
                   <Input value={(item as Furniture).partitionCount ?? 0} onChange={(v) => updateFurniture(item.id, { partitionCount: Math.max(0, v) })} />
                 </label>
               </div>
+              <label className="block space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Handle Position</span>
+                <select
+                  defaultValue="default"
+                  onChange={(event) => {
+                    const position = event.target.value as HandlePositionPreset;
+                    const partById = new Map(furnitureParts.map((part) => [part.id, part]));
+                    const nextParts = furnitureParts.map((part) =>
+                      part.type === 'handle' ? { ...part, localPosition: getHandleLocalPosition(part, partById.get(part.parentPartId || ''), position) } : part,
+                    );
+                    updateFurniture((item as Furniture).id, { parts: nextParts });
+                  }}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                >
+                  <option value="default">Default reveal side</option>
+                  <option value="center">Centered</option>
+                  <option value="top">Top</option>
+                  <option value="bottom">Bottom</option>
+                  <option value="left">Left side</option>
+                  <option value="right">Right side</option>
+                </select>
+              </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   ['Rod', 'hasHangingRod'],
@@ -632,6 +735,36 @@ export const PropertiesSidebar: React.FC = () => {
                     {label}
                   </label>
                 ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="space-y-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Handle Type</span>
+                  <select
+                    value={furnitureParts.find((part) => part.type === 'handle')?.handleType || 'bar'}
+                    onChange={(event) => updatePartsByType((part) => part.type === 'handle', { handleType: event.target.value as FurniturePart['handleType'] })}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                  >
+                    <option value="bar">Bar</option>
+                    <option value="knob">Knob</option>
+                    <option value="edge_pull">Edge Pull</option>
+                    <option value="none">None</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Handle Visibility</span>
+                  <select
+                    value={(item as Furniture).hasHandle === false ? 'hidden' : 'visible'}
+                    onChange={(event) => {
+                      const visible = event.target.value === 'visible';
+                      updateFurniture(item.id, { hasHandle: visible });
+                      updatePartsByType((part) => part.type === 'handle', { visible });
+                    }}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                  >
+                    <option value="visible">Visible</option>
+                    <option value="hidden">Hidden</option>
+                  </select>
+                </label>
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -679,9 +812,9 @@ export const PropertiesSidebar: React.FC = () => {
                     onChange={(event) => updateSelectedPart({ materialId: event.target.value || undefined })}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
                   >
-                    <option value="">Use furniture finish</option>
+                    <option value="">Use role default</option>
                     {materialCatalog
-                      .filter((material) => ['Laminate', 'Veneer', 'Solid Paints', 'Stone', 'Metal', 'Glass'].includes(material.group))
+                      .filter((material) => FINISH_GROUPS.includes(material.group))
                       .map((material) => (
                         <option key={material.id} value={material.id}>
                           {material.name} · {material.group}
@@ -689,12 +822,24 @@ export const PropertiesSidebar: React.FC = () => {
                       ))}
                   </select>
                 </label>
+                <ColorInput
+                  label="Selected Part Color"
+                  value={selectedFurniturePart.color || getPartFallbackColor(item as Furniture, selectedFurniturePart)}
+                  onChange={(value) => updateSelectedPart({ color: value })}
+                  onReset={() => updateSelectedPart({ color: undefined })}
+                />
                 <div className="grid grid-cols-3 gap-2">
                   <LabeledInput label="W" unitSystem="mm" valueMm={selectedFurniturePart.size.width} onChange={(v) => updateSelectedPart({ size: { ...selectedFurniturePart.size, width: v } })} />
                   <LabeledInput label="H" unitSystem="mm" valueMm={selectedFurniturePart.size.height} onChange={(v) => updateSelectedPart({ size: { ...selectedFurniturePart.size, height: v } })} />
                   <LabeledInput label="D" unitSystem="mm" valueMm={selectedFurniturePart.size.depth} onChange={(v) => updateSelectedPart({ size: { ...selectedFurniturePart.size, depth: v } })} />
                 </div>
                 <LabeledInput label="Thickness (mm)" unitSystem="mm" valueMm={selectedFurniturePart.thickness} onChange={(v) => updateSelectedPart({ thickness: v })} />
+                <button
+                  onClick={resetSelectedPartOverrides}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:bg-white hover:text-blue-600"
+                >
+                  Reset Part Overrides
+                </button>
               </div>
             )}
             <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -828,6 +973,41 @@ const LabeledInput: React.FC<{
   </div>
 );
 
+const ColorInput: React.FC<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onReset?: () => void;
+}> = ({ label, value, onChange, onReset }) => (
+  <label className="block space-y-1.5">
+    <span className="flex items-center justify-between">
+      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+      {onReset && (
+        <button
+          type="button"
+          onClick={onReset}
+          className="text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-blue-600"
+        >
+          Reset
+        </button>
+      )}
+    </span>
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        value={normaliseColor(value)}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
+      />
+      <input
+        value={value || '#ffffff'}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+      />
+    </div>
+  </label>
+);
+
 const PanelRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
     <span className="font-bold text-slate-600">{label}</span>
@@ -873,3 +1053,41 @@ const NudgePad: React.FC<{ onNudge: (dx: number, dy: number) => void }> = ({ onN
     </div>
   );
 };
+
+type HandlePositionPreset = 'default' | 'center' | 'top' | 'bottom' | 'left' | 'right';
+
+function getPartFallbackColor(item: Furniture, part: FurniturePart) {
+  const role = part.materialRole ?? 'exterior';
+  const materialId =
+    part.materialId ??
+    (role === 'interior'
+      ? item.internalMaterialId
+      : role === 'hardware'
+        ? item.hardwareMaterialId
+        : item.materialId);
+  const material = getMaterial(materialId);
+  if (role === 'hardware') return item.hardwareColor || material?.color || '#d4af7a';
+  if (role === 'interior') return item.interiorColor || material?.color || '#e2e8f0';
+  return item.exteriorColor || material?.color || item.color || '#cbd5e1';
+}
+
+function getHandleLocalPosition(
+  handle: FurniturePart,
+  parent: FurniturePart | undefined,
+  preset: HandlePositionPreset,
+): FurniturePart['localPosition'] {
+  const current = handle.localPosition ?? { x: 0, y: 0, z: handle.size.depth * 1.5 };
+  if (!parent || preset === 'default') return current;
+  const frontZ = current.z || parent.size.depth / 2 + handle.size.depth;
+  const xInset = parent.size.width * 0.32;
+  const yInset = parent.size.height * 0.36;
+  if (preset === 'center') return { x: 0, y: 0, z: frontZ };
+  if (preset === 'top') return { x: current.x, y: yInset, z: frontZ };
+  if (preset === 'bottom') return { x: current.x, y: -yInset, z: frontZ };
+  if (preset === 'left') return { x: -xInset, y: current.y, z: frontZ };
+  return { x: xInset, y: current.y, z: frontZ };
+}
+
+function normaliseColor(color: string) {
+  return /^#[0-9a-f]{6}$/i.test(color) ? color : '#ffffff';
+}

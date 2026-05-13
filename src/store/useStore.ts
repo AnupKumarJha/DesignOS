@@ -66,6 +66,10 @@ export interface Furniture {
   height: number;
   color?: string;
   materialId?: string;
+  hardwareMaterialId?: string;
+  hardwareColor?: string;
+  exteriorColor?: string;
+  interiorColor?: string;
   catalogItemId?: string;
   variantId?: string;
   texture?: string;
@@ -160,6 +164,8 @@ export type FurniturePartType =
   | 'leg'
   | 'frame'
   | 'mirror_glass';
+export type FurnitureMaterialRole = 'exterior' | 'interior' | 'hardware' | 'countertop' | 'custom';
+export type FurnitureHandleType = 'bar' | 'knob' | 'edge_pull' | 'none';
 export interface FurniturePart {
   id: string;
   type: FurniturePartType;
@@ -167,9 +173,13 @@ export interface FurniturePart {
   materialId?: string;
   thickness: number;
   position: { x: number; y: number; z: number };
+  localPosition?: { x: number; y: number; z: number };
   size: { width: number; height: number; depth: number };
   visible: boolean;
   parentPartId?: string;
+  materialRole?: FurnitureMaterialRole;
+  color?: string;
+  handleType?: FurnitureHandleType;
   mechanism?: 'none' | 'swing' | 'slide' | 'pullout';
   hingeSide?: 'left' | 'right';
   metalness?: number;
