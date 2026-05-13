@@ -427,6 +427,7 @@ export const FloorPlan: React.FC = () => {
   return (
     <div
       ref={containerRef}
+      data-testid="floor-plan"
       className="w-full h-full bg-white overflow-hidden"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes(FURNITURE_DRAG_MIME)) event.preventDefault();

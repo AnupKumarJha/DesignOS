@@ -10,6 +10,9 @@ coverage/
 # Local reference screenshots (not part of source)
 infurnia-image-referneces/
 Renders/
+test-results/
+playwright-report/
+tests/e2e/artifacts/
 
 # Local/heavy 3D assets should be curated before committing
 *.glb

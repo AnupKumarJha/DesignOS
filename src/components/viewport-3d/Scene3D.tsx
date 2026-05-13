@@ -182,6 +182,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
   return (
     <div
       ref={containerRef}
+      data-testid={presentationMode ? 'scene-3d-real' : 'scene-3d'}
       className={cn("w-full h-full relative", presentationMode ? "bg-[#f5efe6]" : "bg-slate-50")}
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes(FURNITURE_DRAG_MIME)) event.preventDefault();

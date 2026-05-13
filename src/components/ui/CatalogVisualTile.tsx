@@ -30,6 +30,9 @@ export const CatalogVisualTile: React.FC<CatalogVisualTileProps> = ({
 }) => {
   return (
     <button
+      data-testid={`catalog-tile-${category.toLowerCase()}-${id}`}
+      data-catalog-id={id}
+      data-catalog-category={category}
       draggable={draggable}
       onDragStart={(event) => {
         if (!draggable || !furniture) return;
@@ -130,4 +133,3 @@ const FurniturePreview: React.FC<{ item?: FurnitureCatalogItem }> = ({ item }) =
     </div>
   );
 };
-

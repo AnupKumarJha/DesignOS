@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "test:e2e": "tsx tests/e2e/furniture-regression.ts",
     "catalog:scrape-3dw": "node scripts/catalog-scrape-3dw.mjs",
     "catalog:scrape-sf": "node scripts/catalog-scrape-sketchfab.mjs"
   },

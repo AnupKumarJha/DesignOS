@@ -337,6 +337,7 @@ export const TopBar: React.FC = () => {
       <div className="flex items-center gap-2 shrink-0">
         <div className="flex items-center p-0.5 bg-slate-100/80 rounded-lg border border-slate-200 shadow-sm">
           <button
+            data-testid="view-mode-2d"
             onClick={() => setViewMode('2D')}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold transition-all",
@@ -349,6 +350,7 @@ export const TopBar: React.FC = () => {
             <span>2D</span>
           </button>
           <button
+            data-testid="view-mode-3d"
             onClick={() => setViewMode('3D')}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold transition-all",
@@ -361,6 +363,7 @@ export const TopBar: React.FC = () => {
             <span>3D</span>
           </button>
           <button
+            data-testid="view-mode-split"
             onClick={() => setViewMode('SPLIT')}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold transition-all",

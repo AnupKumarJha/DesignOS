@@ -23,6 +23,7 @@ import {
 } from './lib/persistence';
 import { getCustomCatalogItems } from './lib/db';
 import { unitLabel } from './lib/units';
+import { installDesignQaHarness } from './lib/qaHarness';
 
 export default function App() {
   const { viewMode, selection, workspaceMode, cameraPreset, presentationMode, settings } = useStore();
@@ -119,6 +120,11 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('qa')) return undefined;
+    return installDesignQaHarness();
+  }, []);
+
   return (
     <div className="fixed inset-0 w-full h-screen bg-slate-100 flex flex-col font-sans overflow-hidden select-none">
       {workspaceMode === 'DASHBOARD' && <ProjectHub />}
@@ -136,7 +142,9 @@ export default function App() {
       <main className="flex-1 flex overflow-hidden relative">
         {!presentationMode && <CatalogSidebar />}
         
-        <div className={cn(
+        <div
+          data-testid="viewport-shell"
+          className={cn(
           "flex-1 relative bg-white overflow-hidden",
           viewMode === 'SPLIT' && "grid grid-cols-2 gap-px bg-slate-200"
         )}>

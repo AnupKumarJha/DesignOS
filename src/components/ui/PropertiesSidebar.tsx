@@ -99,7 +99,7 @@ export const PropertiesSidebar: React.FC = () => {
     : 0;
 
   return (
-    <div className="w-[320px] h-full bg-white border-l border-slate-200 flex flex-col z-40 transition-all shadow-2xl overflow-hidden">
+    <div data-testid="properties-sidebar" className="w-[320px] h-full bg-white border-l border-slate-200 flex flex-col z-40 transition-all shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="px-5 h-12 bg-white border-b border-slate-200 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center gap-2.5">
@@ -544,6 +544,7 @@ export const PropertiesSidebar: React.FC = () => {
               </div>
 
               <button
+                data-testid="furniture-open-toggle"
                 onClick={() => {
                   if (currentMaterial) setMaterialDrawerCategory(currentMaterial.group);
                   setMaterialDrawerOpen(true);
@@ -595,6 +596,7 @@ export const PropertiesSidebar: React.FC = () => {
               <label className="block space-y-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Open Amount</span>
                 <input
+                  data-testid="furniture-open-amount"
                   type="range"
                   min={0}
                   max={1}
@@ -610,6 +612,7 @@ export const PropertiesSidebar: React.FC = () => {
               <label className="block space-y-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Exterior Finish</span>
                 <select
+                  data-testid="furniture-exterior-finish"
                   value={(item as Furniture).materialId || ''}
                   onChange={(event) => updateFurniture(item.id, { materialId: event.target.value || undefined })}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
@@ -626,6 +629,7 @@ export const PropertiesSidebar: React.FC = () => {
               </label>
               <ColorInput
                 label="Exterior Color"
+                testId="furniture-exterior-color"
                 value={(item as Furniture).exteriorColor || getMaterial((item as Furniture).materialId)?.color || (item as Furniture).color || '#cbd5e1'}
                 onChange={(value) => updateFurniture(item.id, { exteriorColor: value })}
                 onReset={() => updateFurniture(item.id, { exteriorColor: undefined })}
@@ -633,6 +637,7 @@ export const PropertiesSidebar: React.FC = () => {
               <label className="block space-y-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Interior Finish</span>
                 <select
+                  data-testid="furniture-interior-finish"
                   value={(item as Furniture).internalMaterialId || 'laminate_ash_grey'}
                   onChange={(event) => updateFurniture(item.id, { internalMaterialId: event.target.value })}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
@@ -648,6 +653,7 @@ export const PropertiesSidebar: React.FC = () => {
               </label>
               <ColorInput
                 label="Interior Color"
+                testId="furniture-interior-color"
                 value={(item as Furniture).interiorColor || getMaterial((item as Furniture).internalMaterialId || 'laminate_ash_grey')?.color || '#e2e8f0'}
                 onChange={(value) => updateFurniture(item.id, { interiorColor: value })}
                 onReset={() => updateFurniture(item.id, { interiorColor: undefined })}
@@ -655,6 +661,7 @@ export const PropertiesSidebar: React.FC = () => {
               <label className="block space-y-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Hardware Finish</span>
                 <select
+                  data-testid="furniture-hardware-finish"
                   value={(item as Furniture).hardwareMaterialId || ''}
                   onChange={(event) => updateFurniture(item.id, { hardwareMaterialId: event.target.value || undefined })}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
@@ -671,6 +678,7 @@ export const PropertiesSidebar: React.FC = () => {
               </label>
               <ColorInput
                 label="Hardware Color"
+                testId="furniture-hardware-color"
                 value={(item as Furniture).hardwareColor || getMaterial((item as Furniture).hardwareMaterialId)?.color || '#d4af7a'}
                 onChange={(value) => updateFurniture(item.id, { hardwareColor: value })}
                 onReset={() => updateFurniture(item.id, { hardwareColor: undefined })}
@@ -678,6 +686,7 @@ export const PropertiesSidebar: React.FC = () => {
               <label className="block space-y-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Internal Layout</span>
                 <select
+                  data-testid="furniture-internal-layout"
                   value={(item as Furniture).internalLayoutPreset || 'auto'}
                   onChange={(event) => updateFurniture(item.id, { internalLayoutPreset: event.target.value as FurnitureLayoutPreset })}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
@@ -700,6 +709,7 @@ export const PropertiesSidebar: React.FC = () => {
               <label className="block space-y-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Handle Position</span>
                 <select
+                  data-testid="furniture-handle-position"
                   defaultValue="default"
                   onChange={(event) => {
                     const position = event.target.value as HandlePositionPreset;
@@ -740,6 +750,7 @@ export const PropertiesSidebar: React.FC = () => {
                 <label className="space-y-1.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Handle Type</span>
                   <select
+                    data-testid="furniture-handle-type"
                     value={furnitureParts.find((part) => part.type === 'handle')?.handleType || 'bar'}
                     onChange={(event) => updatePartsByType((part) => part.type === 'handle', { handleType: event.target.value as FurniturePart['handleType'] })}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
@@ -753,6 +764,7 @@ export const PropertiesSidebar: React.FC = () => {
                 <label className="space-y-1.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Handle Visibility</span>
                   <select
+                    data-testid="furniture-handle-visibility"
                     value={(item as Furniture).hasHandle === false ? 'hidden' : 'visible'}
                     onChange={(event) => {
                       const visible = event.target.value === 'visible';
@@ -767,7 +779,7 @@ export const PropertiesSidebar: React.FC = () => {
                 </label>
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div data-testid="generated-parts-list" className="rounded-xl border border-slate-200 bg-white overflow-hidden">
               <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Generated Parts</span>
                 <span className="text-[10px] font-black text-blue-600">{furnitureParts.length}</span>
@@ -776,6 +788,10 @@ export const PropertiesSidebar: React.FC = () => {
                 {furnitureParts.map((part) => (
                   <button
                     key={part.id}
+                    data-testid="furniture-part-row"
+                    data-part-id={part.id}
+                    data-part-type={part.type}
+                    data-part-role={part.materialRole ?? ''}
                     onClick={() => updateFurniture(item.id, { selectedPartId: part.id })}
                     className={cn(
                       'w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50',
@@ -789,7 +805,7 @@ export const PropertiesSidebar: React.FC = () => {
               </div>
             </div>
             {selectedFurniturePart && (
-              <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+              <div data-testid="selected-part-editor" className="mt-3 rounded-xl border border-slate-200 bg-white p-3 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-[11px] font-black text-slate-800">{selectedFurniturePart.name}</div>
@@ -797,6 +813,7 @@ export const PropertiesSidebar: React.FC = () => {
                   </div>
                   <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-500">
                     <input
+                      data-testid="selected-part-visible"
                       type="checkbox"
                       checked={selectedFurniturePart.visible}
                       onChange={(event) => updateSelectedPart({ visible: event.target.checked })}
@@ -808,6 +825,7 @@ export const PropertiesSidebar: React.FC = () => {
                 <label className="block space-y-1.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Part Material</span>
                   <select
+                    data-testid="selected-part-material"
                     value={selectedFurniturePart.materialId || ''}
                     onChange={(event) => updateSelectedPart({ materialId: event.target.value || undefined })}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
@@ -824,6 +842,7 @@ export const PropertiesSidebar: React.FC = () => {
                 </label>
                 <ColorInput
                   label="Selected Part Color"
+                  testId="selected-part-color"
                   value={selectedFurniturePart.color || getPartFallbackColor(item as Furniture, selectedFurniturePart)}
                   onChange={(value) => updateSelectedPart({ color: value })}
                   onReset={() => updateSelectedPart({ color: undefined })}
@@ -835,6 +854,7 @@ export const PropertiesSidebar: React.FC = () => {
                 </div>
                 <LabeledInput label="Thickness (mm)" unitSystem="mm" valueMm={selectedFurniturePart.thickness} onChange={(v) => updateSelectedPart({ thickness: v })} />
                 <button
+                  data-testid="selected-part-reset-overrides"
                   onClick={resetSelectedPartOverrides}
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:bg-white hover:text-blue-600"
                 >
@@ -978,13 +998,15 @@ const ColorInput: React.FC<{
   value: string;
   onChange: (value: string) => void;
   onReset?: () => void;
-}> = ({ label, value, onChange, onReset }) => (
+  testId?: string;
+}> = ({ label, value, onChange, onReset, testId }) => (
   <label className="block space-y-1.5">
     <span className="flex items-center justify-between">
       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
       {onReset && (
         <button
           type="button"
+          data-testid={testId ? `${testId}-reset` : undefined}
           onClick={onReset}
           className="text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-blue-600"
         >
@@ -994,12 +1016,14 @@ const ColorInput: React.FC<{
     </span>
     <div className="flex items-center gap-2">
       <input
+        data-testid={testId ? `${testId}-swatch` : undefined}
         type="color"
         value={normaliseColor(value)}
         onChange={(event) => onChange(event.target.value)}
         className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
       />
       <input
+        data-testid={testId ? `${testId}-value` : undefined}
         value={value || '#ffffff'}
         onChange={(event) => onChange(event.target.value)}
         className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"

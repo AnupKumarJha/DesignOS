@@ -197,9 +197,9 @@ export const InfurniaRibbon: React.FC<InfurniaRibbonProps> = ({
             <TableProperties size={12} />
             Catalogue
           </button>
-          <button onClick={() => setViewMode('2D')} className="px-3 py-1.5 rounded-md bg-white text-[11px] font-black text-slate-700">2D</button>
-          <button onClick={() => { setViewMode('3D'); setCameraPreset('FREE'); }} className="px-3 py-1.5 rounded-md text-[11px] font-black text-slate-600 hover:bg-white">3D</button>
-          <button onClick={() => setViewMode('SPLIT')} className="px-3 py-1.5 rounded-md text-[11px] font-black text-slate-600 hover:bg-white">Split</button>
+          <button data-testid="ribbon-view-mode-2d" onClick={() => setViewMode('2D')} className="px-3 py-1.5 rounded-md bg-white text-[11px] font-black text-slate-700">2D</button>
+          <button data-testid="ribbon-view-mode-3d" onClick={() => { setViewMode('3D'); setCameraPreset('FREE'); }} className="px-3 py-1.5 rounded-md text-[11px] font-black text-slate-600 hover:bg-white">3D</button>
+          <button data-testid="ribbon-view-mode-split" onClick={() => setViewMode('SPLIT')} className="px-3 py-1.5 rounded-md text-[11px] font-black text-slate-600 hover:bg-white">Split</button>
         </div>
       </div>
       <div className="h-[84px] flex items-stretch overflow-x-auto no-scrollbar">
@@ -208,6 +208,7 @@ export const InfurniaRibbon: React.FC<InfurniaRibbonProps> = ({
             {group.tools.map((tool) => (
               <button
                 key={tool.label}
+                data-testid={`ribbon-tool-${tool.label.toLowerCase().replaceAll('.', '').replaceAll(' ', '-')}`}
                 onClick={tool.disabled ? undefined : tool.onClick}
                 disabled={tool.disabled}
                 title={tool.disabled ? `${tool.label} coming next` : tool.label}
