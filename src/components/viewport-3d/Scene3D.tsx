@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { ContactShadows, Environment, Grid, GizmoHelper, GizmoViewport, OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
+import { ContactShadows, Environment, Grid, GizmoHelper, GizmoViewport, OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { Bloom, EffectComposer, SSAO, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { CameraPreset, Wall, useStore } from '../../store/useStore';
@@ -35,14 +35,6 @@ const cameraLabels: Record<CameraPreset, string> = {
 };
 
 type FloorDropProjector = (clientX: number, clientY: number) => { x: number; y: number } | null;
-
-const isOrthographic: Record<CameraPreset, boolean> = {
-  FREE: false,
-  TOP: true,
-  FRONT: true,
-  SIDE: true,
-  ISLAND_FRONT: false,
-};
 
 export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
   const {
@@ -146,7 +138,16 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sceneBounds.centerX, sceneBounds.centerZ, cameraPreset, presentationMode, renderCameraPreset, renderBounds.centerX, renderBounds.centerZ]);
 
-  const orthographic = !presentationMode && isOrthographic[cameraPreset];
+  const setPrimaryDragAction = (action: THREE.MOUSE) => {
+    if (!orbitRef.current) return;
+    orbitRef.current.mouseButtons.LEFT = action;
+  };
+  const handlePointerDownCapture = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    setPrimaryDragAction(event.shiftKey || event.altKey || event.metaKey || event.ctrlKey ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE);
+  };
+  const resetPrimaryDragAction = () => setPrimaryDragAction(THREE.MOUSE.ROTATE);
+
   const captureRender = () => {
     const canvas = containerRef.current?.querySelector('canvas') ?? null;
     const name = `${currentRoom?.name ?? 'room'}-${renderRoomType}-render.png`
@@ -186,6 +187,10 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         if (event.dataTransfer.types.includes(FURNITURE_DRAG_MIME)) event.preventDefault();
       }}
       onDrop={handleCatalogDrop}
+      onPointerDownCapture={handlePointerDownCapture}
+      onPointerUpCapture={resetPrimaryDragAction}
+      onPointerCancel={resetPrimaryDragAction}
+      onPointerLeave={resetPrimaryDragAction}
     >
       <Canvas
         shadows
@@ -207,27 +212,23 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
       >
         <FloorDropProjectorBridge projectorRef={floorDropProjectorRef} />
 
-        {orthographic ? (
-          <OrthographicCamera key={cameraPreset} makeDefault position={cameraPosition} zoom={0.08} near={1} far={100000} />
-        ) : (
-          <PerspectiveCamera key={presentationMode ? renderCameraPreset : cameraPreset} makeDefault position={cameraPosition} far={200000} fov={presentationMode ? 42 : 50} />
-        )}
+        <PerspectiveCamera key={presentationMode ? renderCameraPreset : cameraPreset} makeDefault position={cameraPosition} far={200000} fov={presentationMode ? 42 : 50} />
         <OrbitControls
           ref={orbitRef}
           makeDefault
           target={targetVec}
           minDistance={presentationMode ? 600 : 1000}
           maxDistance={100000}
-          enableRotate={presentationMode || cameraPreset !== 'TOP'}
+          enableRotate
           enablePan
           mouseButtons={{
-            LEFT: THREE.MOUSE.PAN,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.ROTATE,
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.PAN,
+            RIGHT: THREE.MOUSE.PAN,
           }}
           touches={{
-            ONE: THREE.TOUCH.PAN,
-            TWO: THREE.TOUCH.DOLLY_ROTATE,
+            ONE: THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN,
           }}
           maxPolarAngle={presentationMode ? Math.PI * 0.62 : Math.PI}
         />
