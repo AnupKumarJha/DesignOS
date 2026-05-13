@@ -4,7 +4,7 @@ import { Html, RoundedBox } from '@react-three/drei';
 import { Furniture, RenderRoomType, Wall } from '../../store/useStore';
 import { RoomBounds, pointsToShape } from '../../lib/rendering';
 import { getMaterial } from '../../data/catalog';
-import { getFinishProps, getMaterialTexture } from '../../lib/materialTexture';
+import { getFinishProps, getMaterialPbrMaps, getMaterialTexture } from '../../lib/materialTexture';
 
 interface RenderRoomKitProps {
   bounds: RoomBounds;
@@ -37,10 +37,12 @@ export const RenderRoomKit: React.FC<RenderRoomKitProps> = ({
     const cloned = texture.clone();
     cloned.wrapS = THREE.RepeatWrapping;
     cloned.wrapT = THREE.RepeatWrapping;
-    cloned.repeat.set(Math.max(1, bounds.width / 650), Math.max(1, bounds.depth / 650));
+    const repeatScale = floorMaterial?.textureRepeatScale ?? 650;
+    cloned.repeat.set(Math.max(1, bounds.width / repeatScale), Math.max(1, bounds.depth / repeatScale));
     cloned.needsUpdate = true;
     return cloned;
-  }, [floorMaterial?.id, bounds.width, bounds.depth]);
+  }, [floorMaterial?.id, floorMaterial?.textureRepeatScale, bounds.width, bounds.depth]);
+  const floorPbrMaps = useMemo(() => getMaterialPbrMaps(floorMaterial), [floorMaterial?.id]);
   const ceilingY = bounds.wallHeight;
 
   return (
@@ -49,6 +51,7 @@ export const RenderRoomKit: React.FC<RenderRoomKitProps> = ({
         <meshPhysicalMaterial
           color={floorMaterial?.color || '#ffffff'}
           map={floorTexture}
+          {...floorPbrMaps}
           roughness={floorFinish.roughness}
           metalness={floorFinish.metalness}
           clearcoat={floorFinish.clearcoat ?? (roomType === 'Bathroom' || roomType === 'Kitchen' ? 0.55 : 0.24)}

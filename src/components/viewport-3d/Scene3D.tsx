@@ -8,7 +8,7 @@ import { Wall3D } from './Wall3D';
 import { Furniture3D } from './Furniture3D';
 import { cn } from '../../lib/utils';
 import { getMaterial } from '../../data/catalog';
-import { getFinishProps, getMaterialTexture } from '../../lib/materialTexture';
+import { getFinishProps, getMaterialPbrMaps, getMaterialTexture } from '../../lib/materialTexture';
 import {
   downloadCanvasPng,
   getRenderCameraPosition,
@@ -236,6 +236,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         {/* Lighting */}
         {!presentationMode && (
           <>
+            <Environment preset="studio" background={false} blur={0.25} />
             <ambientLight intensity={0.6} />
             <spotLight 
               position={[10000, 15000, 10000]} 
@@ -248,6 +249,13 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
               shadow-normalBias={0.05}
             />
             <directionalLight position={[-5000, 10000, 5000]} intensity={0.5} />
+            <ContactShadows
+              position={[sceneBounds.centerX, 2, sceneBounds.centerZ]}
+              opacity={0.26}
+              scale={sceneBounds.size * 1.45}
+              blur={2.4}
+              far={2800}
+            />
           </>
         )}
         {presentationMode && (
@@ -328,6 +336,11 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
               item={item}
               isSelected={!presentationMode && selection?.id === item.id}
               renderMode={presentationMode}
+              onPartClick={(partId) => {
+                if (presentationMode) return;
+                setSelection({ id: item.id, type: 'furniture' });
+                updateFurniture(item.id, { selectedPartId: partId });
+              }}
               onClick={() => {
                 if (activeTool === 'DELETE') {
                   removeFurniture(item.id);
@@ -354,7 +367,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({ cameraPreset = 'FREE' }) => {
         </GizmoHelper>}
 
         {presentationMode && renderQuality === 'High' && (
-          <EffectComposer multisampling={4}>
+          <EffectComposer multisampling={4} enableNormalPass>
             <SSAO samples={18} radius={0.18} intensity={18} luminanceInfluence={0.72} color={new THREE.Color('black')} />
             {showLights && <Bloom intensity={0.65} luminanceThreshold={0.55} luminanceSmoothing={0.24} mipmapBlur />}
             <Vignette eskil={false} offset={0.18} darkness={0.42} />
@@ -478,10 +491,12 @@ const FloorSurface: React.FC<{
     const cloned = source.clone();
     cloned.wrapS = THREE.RepeatWrapping;
     cloned.wrapT = THREE.RepeatWrapping;
-    cloned.repeat.set(Math.max(1, bounds.width / 650), Math.max(1, bounds.depth / 650));
+    const repeatScale = material?.textureRepeatScale ?? 650;
+    cloned.repeat.set(Math.max(1, bounds.width / repeatScale), Math.max(1, bounds.depth / repeatScale));
     cloned.needsUpdate = true;
     return cloned;
-  }, [material?.id, bounds.width, bounds.depth]);
+  }, [material?.id, material?.textureRepeatScale, bounds.width, bounds.depth]);
+  const pbrMaps = useMemo(() => getMaterialPbrMaps(material), [material?.id]);
   const geometry = useMemo(() => {
     if (infinite) return null;
     return new THREE.ShapeGeometry(pointsToShape(walls, bounds));
@@ -494,6 +509,7 @@ const FloorSurface: React.FC<{
         <meshPhysicalMaterial
           color={material?.color || '#ffffff'}
           map={texture}
+          {...pbrMaps}
           roughness={finish.roughness}
           metalness={finish.metalness}
           clearcoat={finish.clearcoat ?? 0.12}
@@ -511,6 +527,7 @@ const FloorSurface: React.FC<{
       <meshPhysicalMaterial
         color={material?.color || '#ffffff'}
         map={texture}
+        {...pbrMaps}
         roughness={finish.roughness}
         metalness={finish.metalness}
         clearcoat={finish.clearcoat ?? 0.2}

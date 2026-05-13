@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import { getCatalogItem, type FurnitureCatalogItem } from '../data/catalog';
+import { tagFurnitureWithParts } from '../lib/furnitureParts';
 
 export interface Point {
   x: number;
@@ -84,6 +85,14 @@ export interface Furniture {
   openState?: 'closed' | 'open';
   openAmount?: number;
   internalMaterialId?: string;
+  parts?: FurniturePart[];
+  selectedPartId?: string;
+  internalLayoutPreset?: FurnitureLayoutPreset;
+  shelfCount?: number;
+  partitionCount?: number;
+  hasHangingRod?: boolean;
+  hasBasket?: boolean;
+  hasPullout?: boolean;
   partMaterials?: Record<string, string>;
   selectedPart?: string;
   isCustomSize?: boolean;
@@ -120,6 +129,52 @@ export interface Room {
 export type ViewMode = '2D' | '3D' | 'SPLIT';
 export type UnitSystem = 'mm' | 'feet' | 'inches';
 export type HingeType = 'Auto' | 'Concealed 110' | 'Soft Close' | 'Blum Clip Top' | 'Piano' | 'Lift Up';
+export type FurnitureLayoutPreset =
+  | 'auto'
+  | 'shelves'
+  | 'drawer_stack'
+  | 'drawer_shutter'
+  | 'hanging_shelves'
+  | 'open_niche';
+export type FurniturePartType =
+  | 'left_panel'
+  | 'right_panel'
+  | 'top_panel'
+  | 'bottom_panel'
+  | 'back_panel'
+  | 'shelf'
+  | 'vertical_partition'
+  | 'shutter'
+  | 'drawer_front'
+  | 'drawer_box'
+  | 'handle'
+  | 'hinge'
+  | 'runner'
+  | 'hanging_rod'
+  | 'basket'
+  | 'skirting'
+  | 'countertop'
+  | 'sink'
+  | 'seat'
+  | 'backrest'
+  | 'leg'
+  | 'frame'
+  | 'mirror_glass';
+export interface FurniturePart {
+  id: string;
+  type: FurniturePartType;
+  name: string;
+  materialId?: string;
+  thickness: number;
+  position: { x: number; y: number; z: number };
+  size: { width: number; height: number; depth: number };
+  visible: boolean;
+  parentPartId?: string;
+  mechanism?: 'none' | 'swing' | 'slide' | 'pullout';
+  hingeSide?: 'left' | 'right';
+  metalness?: number;
+  roughness?: number;
+}
 export type CameraPreset = 'FREE' | 'TOP' | 'FRONT' | 'SIDE' | 'ISLAND_FRONT';
 export type WorkspaceMode = 'DASHBOARD' | 'DESIGN';
 export type Tool = 'SELECT' | 'WALL' | 'FURNITURE' | 'WINDOW' | 'DOOR' | 'DELETE' | 'APPLY_FINISH';
@@ -286,19 +341,20 @@ const createDefaultSettings = (): ProjectSettings => ({
   defaultWallThickness: 150,
 });
 
-const tagFurnitureDefaults = (item: Furniture): Furniture => ({
-  ...item,
-  openState: item.openState ?? 'closed',
-  openAmount: item.openAmount ?? 0,
-  hingeType: item.hingeType ?? 'Auto',
-  hingeSide: item.hingeSide ?? 'auto',
-  hingeCount: item.hingeCount ?? Math.max(2, item.height > 1200 ? 3 : 2),
-  hingeOffsetTop: item.hingeOffsetTop ?? 110,
-  hingeOffsetBottom: item.hingeOffsetBottom ?? 110,
-  hingeBoreDistance: item.hingeBoreDistance ?? 22,
-  openAngle: item.openAngle ?? 100,
-  isCustomSize: item.isCustomSize ?? false,
-});
+const tagFurnitureDefaults = (item: Furniture): Furniture =>
+  tagFurnitureWithParts({
+    ...item,
+    openState: item.openState ?? 'closed',
+    openAmount: item.openAmount ?? 0,
+    hingeType: item.hingeType ?? 'Auto',
+    hingeSide: item.hingeSide ?? 'auto',
+    hingeCount: item.hingeCount ?? Math.max(2, item.height > 1200 ? 3 : 2),
+    hingeOffsetTop: item.hingeOffsetTop ?? 110,
+    hingeOffsetBottom: item.hingeOffsetBottom ?? 110,
+    hingeBoreDistance: item.hingeBoreDistance ?? 22,
+    openAngle: item.openAngle ?? 100,
+    isCustomSize: item.isCustomSize ?? false,
+  });
 
 const createDefaultRoom = (project: ProjectMeta): Room => ({
   id: crypto.randomUUID(),
@@ -486,7 +542,7 @@ export const useStore = create<AppState>()(
       })),
 
       updateFurniture: (id, updates) => set((state) => ({
-        furniture: state.furniture.map((f) => f.id === id ? { ...f, ...updates } : f),
+        furniture: state.furniture.map((f) => f.id === id ? tagFurnitureWithParts({ ...f, ...updates }) : f),
         project: { ...state.project, updatedAt: new Date().toISOString() }
       })),
 
@@ -505,12 +561,12 @@ export const useStore = create<AppState>()(
           const variant = getCatalogItem(next.catalogItemId)?.variants.find(
             (entry) => entry.width === next.width && entry.depth === next.depth && entry.height === next.height,
           );
-          return {
+          return tagFurnitureWithParts({
             ...next,
             variantId: variant?.id ?? next.variantId,
             catalogVariantLabel: variant?.label ?? next.catalogVariantLabel,
             isCustomSize: !variant,
-          };
+          });
         }),
         project: { ...state.project, updatedAt: new Date().toISOString() },
       })),

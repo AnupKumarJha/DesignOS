@@ -52,6 +52,26 @@ function loadImageTexture(url: string): THREE.Texture {
   return texture;
 }
 
+export function getMaterialPbrMaps(material: MaterialItem | undefined) {
+  if (!material) return {};
+  return {
+    normalMap: material.normalMapUrl ? loadLinearTexture(material.normalMapUrl) : null,
+    roughnessMap: material.roughnessMapUrl ? loadLinearTexture(material.roughnessMapUrl) : null,
+    aoMap: material.aoMapUrl ? loadLinearTexture(material.aoMapUrl) : null,
+  };
+}
+
+function loadLinearTexture(url: string): THREE.Texture {
+  if (imageCache.has(url)) return imageCache.get(url)!;
+  const loader = new THREE.TextureLoader();
+  const texture = loader.load(url);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  imageCache.set(url, texture);
+  return texture;
+}
+
 /**
  * Maps a finishType to physical surface properties for meshStandardMaterial.
  */

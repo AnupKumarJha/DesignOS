@@ -4,7 +4,7 @@ import { Wall, WallOpening } from '../../store/useStore';
 import { COLORS } from '../../lib/constants';
 import { getDistance } from '../../lib/math';
 import { getMaterial } from '../../data/catalog';
-import { getMaterialTexture, getFinishProps } from '../../lib/materialTexture';
+import { getMaterialTexture, getFinishProps, getMaterialPbrMaps } from '../../lib/materialTexture';
 
 interface Wall3DProps {
   wall: Wall;
@@ -33,9 +33,11 @@ export const Wall3D: React.FC<Wall3DProps> = ({ wall, openings, isSelected, dept
     cloned.wrapS = THREE.RepeatWrapping;
     cloned.wrapT = THREE.RepeatWrapping;
     cloned.needsUpdate = true;
-    cloned.repeat.set(Math.max(1, length / 1000), Math.max(1, wall.height / 1000));
+    const repeatScale = material?.textureRepeatScale ?? 1000;
+    cloned.repeat.set(Math.max(1, length / repeatScale), Math.max(1, wall.height / repeatScale));
     return cloned;
-  }, [material?.id, length, wall.height]);
+  }, [material?.id, material?.textureRepeatScale, length, wall.height]);
+  const pbrMaps = useMemo(() => getMaterialPbrMaps(material), [material?.id]);
 
   const geometry = useMemo(() => {
     const shape = new THREE.Shape();
@@ -81,6 +83,7 @@ export const Wall3D: React.FC<Wall3DProps> = ({ wall, openings, isSelected, dept
         <meshPhysicalMaterial
           color={wall.color || COLORS.WALL_3D}
           map={texture}
+          {...pbrMaps}
           emissive={isSelected ? new THREE.Color(COLORS.SELECTION) : new THREE.Color(0x000000)}
           emissiveIntensity={isSelected ? 0.08 : 0}
           roughness={finish.roughness}

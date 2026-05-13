@@ -1,11 +1,12 @@
 import React from 'react';
-import { HingeType, useStore, Wall, Furniture, UnitSystem } from '../../store/useStore';
+import { HingeType, useStore, Wall, Furniture, UnitSystem, FurnitureLayoutPreset, FurniturePart } from '../../store/useStore';
 import { X, Settings2, Trash2, ChevronDown, Layers, Ruler, Palette, Sparkles, ChevronRight, Move, RotateCw } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { furnitureCatalog, getCatalogItem, getMaterial, materialCatalog } from '../../data/catalog';
 import { getDistance } from '../../lib/math';
 import { getPatternStyle } from '../../lib/materialPattern';
 import { fromDisplayLength, toDisplayLength, unitLabel } from '../../lib/units';
+import { FURNITURE_LAYOUT_PRESETS, generateFurnitureParts, partTypeLabel } from '../../lib/furnitureParts';
 
 const HINGE_TYPES: HingeType[] = ['Auto', 'Concealed 110', 'Soft Close', 'Blum Clip Top', 'Piano', 'Lift Up'];
 
@@ -44,9 +45,25 @@ export const PropertiesSidebar: React.FC = () => {
     (isWall || isFurniture) ? (item as Wall | Furniture).materialId : undefined;
   const currentMaterial = getMaterial(currentMaterialId);
   const selectedTypeLabel = isWall ? 'Wall' : isFurniture ? 'Furniture' : (item as any).type;
+  const furnitureParts = isFurniture ? generateFurnitureParts(item as Furniture) : [];
+  const selectedFurniturePart = isFurniture
+    ? furnitureParts.find((part) => part.id === (item as Furniture).selectedPartId) ?? furnitureParts[0]
+    : undefined;
 
   const deleteSelectedItem = () => {
     deleteSelection();
+  };
+
+  const updateSelectedPart = (updates: Partial<FurniturePart>) => {
+    if (!isFurniture || !selectedFurniturePart) return;
+    const furnitureItem = item as Furniture;
+    const nextParts = furnitureParts.map((part) =>
+      part.id === selectedFurniturePart.id ? { ...part, ...updates } : part,
+    );
+    updateFurniture(furnitureItem.id, {
+      parts: nextParts,
+      selectedPartId: selectedFurniturePart.id,
+    });
   };
 
   // Parent wall lookup for openings (door/window) — needed for offset-in-mm
@@ -547,6 +564,21 @@ export const PropertiesSidebar: React.FC = () => {
                 {(item as Furniture).openState === 'open' ? 'Close Unit' : 'Open Unit / Inspect Internals'}
               </button>
               <label className="block space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Open Amount</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={(item as Furniture).openAmount ?? 0}
+                  onChange={(event) => {
+                    const amount = Number(event.target.value);
+                    updateFurniture(item.id, { openAmount: amount, openState: amount > 0 ? 'open' : 'closed' });
+                  }}
+                  className="w-full accent-blue-600"
+                />
+              </label>
+              <label className="block space-y-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Interior Finish</span>
                 <select
                   value={(item as Furniture).internalMaterialId || 'laminate_ash_grey'}
@@ -559,25 +591,123 @@ export const PropertiesSidebar: React.FC = () => {
                       <option key={material.id} value={material.id}>
                         {material.name} · {material.group}
                       </option>
-                    ))}
+                  ))}
                 </select>
               </label>
+              <label className="block space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Internal Layout</span>
+                <select
+                  value={(item as Furniture).internalLayoutPreset || 'auto'}
+                  onChange={(event) => updateFurniture(item.id, { internalLayoutPreset: event.target.value as FurnitureLayoutPreset })}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                >
+                  {FURNITURE_LAYOUT_PRESETS.map((preset) => (
+                    <option key={preset.id} value={preset.id}>{preset.label}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="space-y-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Shelves</span>
+                  <Input value={(item as Furniture).shelfCount ?? 0} onChange={(v) => updateFurniture(item.id, { shelfCount: Math.max(0, v) })} />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Partitions</span>
+                  <Input value={(item as Furniture).partitionCount ?? 0} onChange={(v) => updateFurniture(item.id, { partitionCount: Math.max(0, v) })} />
+                </label>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  ['Rod', 'hasHangingRod'],
+                  ['Basket', 'hasBasket'],
+                  ['Pullout', 'hasPullout'],
+                ].map(([label, key]) => (
+                  <label key={key} className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[10px] font-black text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={Boolean((item as any)[key])}
+                      onChange={(event) => updateFurniture(item.id, { [key]: event.target.checked } as Partial<Furniture>)}
+                      className="accent-blue-600"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
             </div>
-            <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Generated Parts</span>
+                <span className="text-[10px] font-black text-blue-600">{furnitureParts.length}</span>
+              </div>
+              <div className="max-h-56 overflow-y-auto divide-y divide-slate-100">
+                {furnitureParts.map((part) => (
+                  <button
+                    key={part.id}
+                    onClick={() => updateFurniture(item.id, { selectedPartId: part.id })}
+                    className={cn(
+                      'w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50',
+                      (item as Furniture).selectedPartId === part.id && 'bg-blue-50',
+                    )}
+                  >
+                    <span className="text-[11px] font-bold text-slate-700 truncate">{part.name}</span>
+                    <span className="text-[10px] text-slate-400 truncate max-w-[120px]">{partTypeLabel(part.type)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {selectedFurniturePart && (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-black text-slate-800">{selectedFurniturePart.name}</div>
+                    <div className="text-[10px] font-bold text-slate-400">{partTypeLabel(selectedFurniturePart.type)}</div>
+                  </div>
+                  <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-500">
+                    <input
+                      type="checkbox"
+                      checked={selectedFurniturePart.visible}
+                      onChange={(event) => updateSelectedPart({ visible: event.target.checked })}
+                      className="accent-blue-600"
+                    />
+                    Visible
+                  </label>
+                </div>
+                <label className="block space-y-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Part Material</span>
+                  <select
+                    value={selectedFurniturePart.materialId || ''}
+                    onChange={(event) => updateSelectedPart({ materialId: event.target.value || undefined })}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                  >
+                    <option value="">Use furniture finish</option>
+                    {materialCatalog
+                      .filter((material) => ['Laminate', 'Veneer', 'Solid Paints', 'Stone', 'Metal', 'Glass'].includes(material.group))
+                      .map((material) => (
+                        <option key={material.id} value={material.id}>
+                          {material.name} · {material.group}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <LabeledInput label="W" unitSystem="mm" valueMm={selectedFurniturePart.size.width} onChange={(v) => updateSelectedPart({ size: { ...selectedFurniturePart.size, width: v } })} />
+                  <LabeledInput label="H" unitSystem="mm" valueMm={selectedFurniturePart.size.height} onChange={(v) => updateSelectedPart({ size: { ...selectedFurniturePart.size, height: v } })} />
+                  <LabeledInput label="D" unitSystem="mm" valueMm={selectedFurniturePart.size.depth} onChange={(v) => updateSelectedPart({ size: { ...selectedFurniturePart.size, depth: v } })} />
+                </div>
+                <LabeledInput label="Thickness (mm)" unitSystem="mm" valueMm={selectedFurniturePart.thickness} onChange={(v) => updateSelectedPart({ thickness: v })} />
+              </div>
+            )}
+            <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden">
               {[
                 ['Carcass', `${(item as Furniture).width}W × ${(item as Furniture).depth}D`],
                 ['Shutters / Drawers', `${(item as Furniture).shutterCount ?? 0} shutters · ${(item as Furniture).drawerCount ?? 0} drawers`],
                 ['Open State', (item as Furniture).openState === 'open' ? 'Open for inspection' : 'Closed'],
-                ['Skirting Options', `${(item as Furniture).skirtingHeight ?? 0}mm`],
-                ['End Panel', 'Left / right panel ready'],
-                ['Add Custom Panel', 'Use for fillers, fascias, and side panels'],
-                ['Automation History', 'Local design actions'],
-                ['Publish to Catalog', 'Save configured SKU later'],
+                ['Production Data', `${furnitureParts.length} generated parts ready`],
               ].map(([label, value]) => (
-                <button key={label} className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50">
+                <div key={label} className="w-full flex items-center justify-between px-3 py-2.5 text-left">
                   <span className="text-[11px] font-bold text-slate-700">{label}</span>
                   <span className="text-[10px] text-slate-400 truncate max-w-[130px]">{value}</span>
-                </button>
+                </div>
               ))}
             </div>
           </Section>

@@ -1,20 +1,22 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { RoundedBox, useGLTF } from '@react-three/drei';
-import { Furniture } from '../../store/useStore';
+import { Furniture, FurniturePart } from '../../store/useStore';
 import { COLORS } from '../../lib/constants';
 import { getCatalogItem, getMaterial } from '../../data/catalog';
-import { getMaterialTexture, getFinishProps } from '../../lib/materialTexture';
+import { getMaterialTexture, getFinishProps, getMaterialPbrMaps } from '../../lib/materialTexture';
 import { getCatalogAsset } from '../../lib/db';
+import { generateFurnitureParts } from '../../lib/furnitureParts';
 
 interface Furniture3DProps {
   item: Furniture;
   isSelected: boolean;
   renderMode?: boolean;
   onClick?: () => void;
+  onPartClick?: (partId: string) => void;
 }
 
-export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, onClick }) => {
+export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, renderMode = false, onClick, onPartClick }) => {
   const isWallCabinet = item.type === 'CABINET_WALL';
 
   // Mount height: prefer catalog mountHeight (e.g. TV unit at 600, mirror at 1100,
@@ -35,19 +37,24 @@ export const Furniture3D: React.FC<Furniture3DProps> = ({ item, isSelected, onCl
     cloned.wrapT = THREE.RepeatWrapping;
     cloned.needsUpdate = true;
     // Tile every ~600mm so cabinet shutters show pattern detail
-    cloned.repeat.set(Math.max(1, item.width / 600), Math.max(1, item.height / 600));
+    const repeatScale = material?.textureRepeatScale ?? 600;
+    cloned.repeat.set(Math.max(1, item.width / repeatScale), Math.max(1, item.height / repeatScale));
     return cloned;
-  }, [material?.id, item.width, item.height]);
+  }, [material?.id, material?.textureRepeatScale, item.width, item.height]);
+  const pbrMaps = useMemo(() => getMaterialPbrMaps(material), [material?.id]);
 
   return (
     <RenderFurniture
       item={item}
       yPos={yPos}
       texture={texture}
+      pbrMaps={pbrMaps}
       finish={finish}
       color={item.color || material?.color || '#ffffff'}
       isSelected={isSelected}
+      renderMode={renderMode}
       onClick={onClick}
+      onPartClick={onPartClick}
     />
   );
 };
@@ -56,20 +63,26 @@ interface RenderFurnitureProps {
   item: Furniture;
   yPos: number;
   texture: THREE.Texture | null;
+  pbrMaps: ReturnType<typeof getMaterialPbrMaps>;
   finish: ReturnType<typeof getFinishProps>;
   color: string;
   isSelected: boolean;
+  renderMode: boolean;
   onClick?: () => void;
+  onPartClick?: (partId: string) => void;
 }
 
 const RenderFurniture: React.FC<RenderFurnitureProps> = ({
   item,
   yPos,
   texture,
+  pbrMaps,
   finish,
   color,
   isSelected,
+  renderMode,
   onClick,
+  onPartClick,
 }) => {
   const catalogItem = getCatalogItem(item.catalogItemId);
   const [uploadedModelUrl, setUploadedModelUrl] = useState<string | null>(null);
@@ -104,9 +117,10 @@ const RenderFurniture: React.FC<RenderFurnitureProps> = ({
   const materialProps = {
     color,
     map: texture,
+    ...pbrMaps,
     roughness: finish.roughness,
     metalness: finish.metalness,
-    clearcoat: finish.clearcoat ?? 0,
+    clearcoat: finish.clearcoat ?? (renderMode ? 0.18 : 0),
     clearcoatRoughness: finish.clearcoatRoughness ?? 0.2,
   };
 
@@ -120,11 +134,11 @@ const RenderFurniture: React.FC<RenderFurnitureProps> = ({
       }}
     >
       {modelUrl ? (
-        <Suspense fallback={<ProceduralFurniture item={item} materialProps={materialProps} />}>
+        <Suspense fallback={<ProceduralFurniture item={item} materialProps={materialProps} renderMode={renderMode} onPartClick={onPartClick} />}>
           <ModelAsset item={item} modelUrl={modelUrl} />
         </Suspense>
       ) : (
-        <ProceduralFurniture item={item} materialProps={materialProps} />
+        <ProceduralFurniture item={item} materialProps={materialProps} renderMode={renderMode} onPartClick={onPartClick} />
       )}
 
       {isSelected && (
@@ -152,191 +166,163 @@ const ModelAsset: React.FC<{ item: Furniture; modelUrl: string }> = ({ item, mod
 const ProceduralFurniture: React.FC<{
   item: Furniture;
   materialProps: any;
-}> = ({ item, materialProps }) => {
+  renderMode: boolean;
+  onPartClick?: (partId: string) => void;
+}> = ({ item, materialProps, renderMode, onPartClick }) => {
   if (item.type === 'BED') return <RenderBed item={item} materialProps={materialProps} />;
   if (item.type === 'SOFA') return <RenderSofa item={item} materialProps={materialProps} />;
-  if (item.type === 'WARDROBE' || item.type === 'CABINET_TALL') return <RenderWardrobe item={item} materialProps={materialProps} />;
   if (item.type === 'DINING_TABLE' || item.type === 'COFFEE_TABLE' || item.type === 'TABLE') return <RenderTable item={item} materialProps={materialProps} />;
   if (item.type === 'CHAIR' || item.type === 'OFFICE_CHAIR') return <RenderChair item={item} materialProps={materialProps} />;
   if (item.type === 'MIRROR') return <RenderMirror item={item} />;
-  if (item.type === 'TV_UNIT' || item.type === 'BOOKSHELF' || item.type === 'DRESSER' || item.type === 'VANITY' || item.type === 'STUDY_UNIT' || item.type === 'SHOE_RACK') {
-    return <RenderCabinet item={item} materialProps={materialProps} countertop={item.type === 'VANITY'} />;
-  }
-  return <RenderCabinet item={item} materialProps={materialProps} countertop={['CABINET_BASE', 'SINK_UNIT'].includes(item.type)} />;
+  return <RenderCabinet item={item} materialProps={materialProps} renderMode={renderMode} onPartClick={onPartClick} />;
 };
 
 const PhysicalMaterial: React.FC<any> = (props) => <meshPhysicalMaterial {...props} />;
 
-const RenderCabinet: React.FC<{ item: Furniture; materialProps: any; countertop?: boolean }> = ({
-  item,
-  materialProps,
-  countertop = false,
-}) => {
-  const shutterCount = Math.max(1, item.shutterCount ?? 1);
-  const drawerCount = item.drawerCount ?? 0;
+const RenderCabinet: React.FC<{
+  item: Furniture;
+  materialProps: any;
+  renderMode: boolean;
+  onPartClick?: (partId: string) => void;
+}> = ({ item, materialProps, renderMode, onPartClick }) => {
+  const parts = useMemo(() => generateFurnitureParts(item), [item]);
   const openAmount = item.openState === 'open' ? (item.openAmount ?? 1) : 0;
-  const isOpenUnit = (item.shutterCount ?? 1) === 0 || item.catalogItemId === 'open_unit';
-  const isPullout = item.catalogItemId === 'pullout_unit';
-  const isSink = item.type === 'SINK_UNIT' || item.catalogItemId === 'sink_unit';
-  const hingeCount = Math.max(1, item.hingeCount ?? (item.height > 1200 ? 3 : 2));
-  const openAngle = ((item.openAngle ?? 100) * Math.PI) / 180;
-  const internalMaterial = getMaterial(item.internalMaterialId) || getMaterial('laminate_ash_grey');
-  const internalFinish = getFinishProps(internalMaterial?.finishType);
-  const internalTexture = useMemo(() => {
-    const source = getMaterialTexture(internalMaterial);
-    if (!source) return null;
-    const cloned = source.clone();
-    cloned.wrapS = THREE.RepeatWrapping;
-    cloned.wrapT = THREE.RepeatWrapping;
-    cloned.repeat.set(Math.max(1, item.width / 700), Math.max(1, item.height / 700));
-    cloned.needsUpdate = true;
-    return cloned;
-  }, [internalMaterial?.id, item.width, item.height]);
-  const panelMaterial = () => (
-    <PhysicalMaterial
-      {...materialProps}
-      color={materialProps.color}
-    />
-  );
-  const internalMaterialNode = () => (
-    <meshPhysicalMaterial
-      color={internalMaterial?.color || '#d8dee8'}
-      map={internalTexture}
-      roughness={internalFinish.roughness}
-      metalness={internalFinish.metalness}
-      clearcoat={internalFinish.clearcoat ?? 0.1}
-      clearcoatRoughness={internalFinish.clearcoatRoughness ?? 0.28}
-    />
-  );
-
+  const selectedPartId = item.selectedPartId;
   return (
     <group>
-      {/* Cabinet carcass: separate panels so open units reveal real internal volume. */}
-      <RoundedBox position={[0, 0, -item.depth / 2 + 16]} args={[item.width, item.height, 32]} radius={10} smoothness={4} castShadow receiveShadow>
-        {internalMaterialNode()}
-      </RoundedBox>
-      {[-1, 1].map((side) => (
-        <RoundedBox key={side} position={[side * (item.width / 2 - 12), 0, 0]} args={[24, item.height, item.depth]} radius={8} smoothness={4} castShadow receiveShadow>
-          {panelMaterial()}
-        </RoundedBox>
+      {parts.map((part) => (
+        <FurniturePartMesh
+          key={part.id}
+          item={item}
+          part={part}
+          openAmount={openAmount}
+          materialProps={materialProps}
+          selected={selectedPartId === part.id}
+          renderMode={renderMode}
+          onPartClick={onPartClick}
+        />
       ))}
-      <RoundedBox position={[0, item.height / 2 - 12, 0]} args={[item.width, 24, item.depth]} radius={8} smoothness={4} castShadow receiveShadow>
-        {panelMaterial()}
-      </RoundedBox>
-      <RoundedBox position={[0, -item.height / 2 + 12, 0]} args={[item.width, 24, item.depth]} radius={8} smoothness={4} castShadow receiveShadow>
-        {panelMaterial()}
-      </RoundedBox>
-      {countertop && (
-        <RoundedBox position={[0, item.height / 2 + 28, 0]} args={[item.width + 60, 56, item.depth + 70]} radius={12} smoothness={5} castShadow receiveShadow>
-          <meshPhysicalMaterial color="#111827" roughness={0.18} clearcoat={0.75} clearcoatRoughness={0.08} />
+      {renderMode && (
+        <mesh position={[0, -item.height / 2 - 1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[item.width * 1.08, item.depth * 1.08]} />
+          <meshBasicMaterial color="#000000" transparent opacity={0.08} />
+        </mesh>
+      )}
+    </group>
+  );
+};
+
+const FurniturePartMesh: React.FC<{
+  item: Furniture;
+  part: FurniturePart;
+  openAmount: number;
+  materialProps: any;
+  selected: boolean;
+  renderMode: boolean;
+  onPartClick?: (partId: string) => void;
+}> = ({ item, part, openAmount, materialProps, selected, renderMode, onPartClick }) => {
+  if (part.visible === false) return null;
+  const isRound = ['hanging_rod', 'handle'].includes(part.type) && part.size.height === part.size.depth;
+  const transform = getPartTransform(item, part, openAmount);
+  const radius = partRadius(part, renderMode);
+  return (
+    <group
+      position={transform.position}
+      rotation={transform.rotation}
+      onClick={(event) => {
+        event.stopPropagation();
+        onPartClick?.(part.id);
+      }}
+    >
+      {isRound ? (
+        <mesh rotation={[0, 0, Math.PI / 2]} castShadow receiveShadow>
+          <cylinderGeometry args={[part.size.height / 2, part.size.height / 2, part.size.width, 28]} />
+          <PartMaterial part={part} materialProps={materialProps} renderMode={renderMode} />
+        </mesh>
+      ) : (
+        <RoundedBox args={[part.size.width, part.size.height, part.size.depth]} radius={radius} smoothness={renderMode ? 6 : 4} castShadow receiveShadow>
+          <PartMaterial part={part} materialProps={materialProps} renderMode={renderMode} />
         </RoundedBox>
       )}
-      {isSink && (
-        <>
-          <RoundedBox position={[0, item.height / 2 + 64, item.depth * 0.08]} args={[Math.min(520, item.width * 0.62), 90, item.depth * 0.48]} radius={42} smoothness={8} castShadow>
-            <meshPhysicalMaterial color="#cbd5e1" metalness={0.18} roughness={0.22} clearcoat={0.65} />
-          </RoundedBox>
-          <mesh position={[0, item.height / 2 + 112, item.depth * 0.08]} rotation={[-Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[Math.min(190, item.width * 0.24), 12, 12, 72]} />
-            <meshPhysicalMaterial color="#94a3b8" metalness={0.35} roughness={0.18} />
-          </mesh>
-        </>
-      )}
-      {(isOpenUnit || openAmount > 0) && (
-        <>
-          {[-0.18, 0.18].map((yFactor) => (
-            <RoundedBox key={yFactor} position={[0, item.height * yFactor, 0]} args={[item.width - 70, 24, item.depth - 60]} radius={6} smoothness={3} castShadow receiveShadow>
-              {internalMaterialNode()}
-            </RoundedBox>
-          ))}
-          <RoundedBox position={[0, 0, item.depth / 2 - 34]} args={[item.width - 84, item.height - 100, 14]} radius={6} smoothness={3}>
-            <meshBasicMaterial color="#0f172a" transparent opacity={0.08} />
-          </RoundedBox>
-        </>
-      )}
-      {isPullout && openAmount > 0 && (
-        <group position={[0, 0, item.depth / 2 + openAmount * item.depth * 0.48]}>
-          <RoundedBox args={[item.width - 72, item.height - 120, 42]} radius={12} smoothness={5} castShadow>
-            <meshPhysicalMaterial color="#d4af7a" metalness={0.45} roughness={0.22} />
-          </RoundedBox>
-          {[-0.3, 0, 0.3].map((x) => (
-            <mesh key={x} position={[item.width * x, -80, 40]}>
-              <cylinderGeometry args={[34, 34, 190, 24]} />
-              <meshPhysicalMaterial color="#1f7a4d" roughness={0.3} clearcoat={0.4} />
-            </mesh>
-          ))}
-        </group>
-      )}
-      {!isOpenUnit && Array.from({ length: drawerCount || shutterCount }).map((_, idx) => {
-        const count = drawerCount || shutterCount;
-        const w = drawerCount ? item.width - 36 : (item.width - 42) / count;
-        const h = drawerCount ? (item.height - 44) / count : item.height - 54;
-        const x = drawerCount ? 0 : -item.width / 2 + 21 + w / 2 + idx * w;
-        const y = drawerCount ? item.height / 2 - 26 - h / 2 - idx * h : 0;
-        const zOpen = drawerCount || isPullout ? openAmount * item.depth * 0.45 : 0;
-        const autoLeft = idx < count / 2;
-        const hingeSide = item.hingeSide === 'left' ? 'left' : item.hingeSide === 'right' ? 'right' : autoLeft ? 'left' : 'right';
-        const hingeSign = hingeSide === 'left' ? -1 : 1;
-        const doorSwing = !drawerCount && openAmount > 0 ? hingeSign * openAngle * openAmount : 0;
-        const pivotX = drawerCount ? x : x + hingeSign * (w / 2 - 5);
-        const panelX = drawerCount ? 0 : -hingeSign * (w / 2 - 5);
-        const handleX = drawerCount ? 0 : panelX + hingeSign * -1 * Math.max(38, w * 0.16);
-        return (
-          <group key={idx} position={[drawerCount ? x : pivotX, y, item.depth / 2 + 12 + zOpen]} rotation={[0, doorSwing, 0]}>
-            <RoundedBox position={[panelX, 0, 0]} args={[w - 10, h - 10, 22]} radius={10} smoothness={4} castShadow>
-              <PhysicalMaterial {...materialProps} color={materialProps.color} />
-            </RoundedBox>
-            {drawerCount > 0 && openAmount > 0 && (
-              <RoundedBox position={[0, 0, -item.depth * 0.24]} args={[w - 46, h - 38, item.depth * 0.46]} radius={8} smoothness={3} castShadow receiveShadow>
-                {internalMaterialNode()}
-              </RoundedBox>
-            )}
-            {!drawerCount && Array.from({ length: hingeCount }).map((_, hingeIdx) => {
-              const top = item.hingeOffsetTop ?? 110;
-              const bottom = item.hingeOffsetBottom ?? 110;
-              const span = Math.max(1, h - top - bottom);
-              const hingeY = h / 2 - top - (hingeCount === 1 ? span / 2 : (span / (hingeCount - 1)) * hingeIdx);
-              const bore = item.hingeBoreDistance ?? 22;
-              const hardwareColor = item.hingeType === 'Piano' ? '#71717a' : '#c0a16b';
-              return (
-                <group key={hingeIdx} position={[0, hingeY, 20]}>
-                  <RoundedBox args={[18, item.hingeType === 'Piano' ? h - 50 : 72, 18]} radius={5} smoothness={3} castShadow>
-                    <meshPhysicalMaterial color={hardwareColor} metalness={0.72} roughness={0.2} />
-                  </RoundedBox>
-                  {item.hingeType !== 'Piano' && (
-                    <mesh position={[panelX + hingeSign * bore, 0, 4]} rotation={[Math.PI / 2, 0, 0]}>
-                      <cylinderGeometry args={[18, 18, 8, 24]} />
-                      <meshPhysicalMaterial color={hardwareColor} metalness={0.68} roughness={0.18} />
-                    </mesh>
-                  )}
-                </group>
-              );
-            })}
-            {item.hasHandle && (
-              <RoundedBox position={[handleX, 0, 18]} args={[drawerCount ? Math.min(220, item.width * 0.38) : 12, drawerCount ? 12 : 190, 12]} radius={5} smoothness={3} castShadow>
-                <meshPhysicalMaterial color="#d4af7a" metalness={0.65} roughness={0.18} />
-              </RoundedBox>
-            )}
-          </group>
-        );
-      })}
-      {(item.skirtingHeight ?? 0) > 0 && (
-        <RoundedBox position={[0, -item.height / 2 - (item.skirtingHeight ?? 0) / 2, 0]} args={[item.width - 80, item.skirtingHeight ?? 80, item.depth - 80]} radius={8} smoothness={4} receiveShadow>
-          <meshStandardMaterial color="#222831" roughness={0.45} />
+      {selected && (
+        <RoundedBox args={[part.size.width + 14, part.size.height + 14, part.size.depth + 14]} radius={Math.max(radius, 6)} smoothness={3}>
+          <meshBasicMaterial color={COLORS.SELECTION} transparent opacity={0.18} />
         </RoundedBox>
       )}
     </group>
   );
 };
 
-const RenderWardrobe: React.FC<{ item: Furniture; materialProps: any }> = ({ item, materialProps }) => (
-  <group>
-    <RenderCabinet item={{ ...item, hasHandle: item.hasHandle ?? true, shutterCount: item.shutterCount ?? 3 }} materialProps={materialProps} />
-    <RoundedBox position={[0, item.height / 2 + 22, 0]} args={[item.width + 20, 44, item.depth + 20]} radius={10} smoothness={4}>
-      <meshPhysicalMaterial color="#f7f1e8" roughness={0.34} />
-    </RoundedBox>
-  </group>
-);
+const PartMaterial: React.FC<{ part: FurniturePart; materialProps: any; renderMode: boolean }> = ({ part, materialProps, renderMode }) => {
+  const material = getMaterial(part.materialId);
+  const finish = getFinishProps(material?.finishType);
+  const texture = useMemo(() => {
+    const source = getMaterialTexture(material);
+    if (!source) return null;
+    const cloned = source.clone();
+    const repeatScale = material?.textureRepeatScale ?? (renderMode ? 420 : 650);
+    cloned.wrapS = THREE.RepeatWrapping;
+    cloned.wrapT = THREE.RepeatWrapping;
+    cloned.repeat.set(Math.max(1, part.size.width / repeatScale), Math.max(1, part.size.height / repeatScale));
+    cloned.needsUpdate = true;
+    return cloned;
+  }, [material?.id, material?.textureRepeatScale, part.size.width, part.size.height, renderMode]);
+  const maps = useMemo(() => getMaterialPbrMaps(material), [material?.id]);
+  if (['handle', 'hinge', 'runner', 'hanging_rod', 'basket'].includes(part.type)) {
+    return <meshPhysicalMaterial color={material?.color || '#d4af7a'} metalness={part.metalness ?? 0.72} roughness={part.roughness ?? 0.18} clearcoat={0.45} clearcoatRoughness={0.14} />;
+  }
+  if (part.type === 'sink') {
+    return <meshPhysicalMaterial color="#cbd5e1" metalness={0.22} roughness={0.2} clearcoat={0.65} clearcoatRoughness={0.12} />;
+  }
+  if (part.type === 'skirting') {
+    return <meshStandardMaterial color="#1f2937" roughness={0.45} />;
+  }
+  if (part.type === 'countertop') {
+    return <meshPhysicalMaterial color={material?.color || '#111827'} map={texture} {...maps} roughness={0.14} metalness={0.02} clearcoat={0.9} clearcoatRoughness={0.08} />;
+  }
+  return (
+    <meshPhysicalMaterial
+      {...materialProps}
+      color={material?.color || materialProps.color}
+      map={texture || materialProps.map}
+      normalMap={maps.normalMap || materialProps.normalMap}
+      roughnessMap={maps.roughnessMap || materialProps.roughnessMap}
+      aoMap={maps.aoMap || materialProps.aoMap}
+      roughness={finish.roughness ?? materialProps.roughness}
+      metalness={finish.metalness ?? materialProps.metalness}
+      clearcoat={finish.clearcoat ?? (renderMode ? 0.28 : 0.12)}
+      clearcoatRoughness={finish.clearcoatRoughness ?? 0.22}
+    />
+  );
+};
+
+function getPartTransform(item: Furniture, part: FurniturePart, openAmount: number): { position: [number, number, number]; rotation: [number, number, number] } {
+  const position: [number, number, number] = [part.position.x, part.position.y, part.position.z];
+  const rotation: [number, number, number] = [0, 0, 0];
+  if (part.mechanism === 'slide') {
+    position[2] += openAmount * item.depth * 0.48;
+  }
+  if (part.mechanism === 'pullout') {
+    position[2] += openAmount * item.depth * 0.55;
+  }
+  if (part.mechanism === 'swing') {
+    const hingeSign = part.hingeSide === 'left' ? -1 : 1;
+    const pivotX = part.position.x + hingeSign * (part.size.width / 2 - 6);
+    position[0] = pivotX;
+    rotation[1] = hingeSign * ((item.openAngle ?? 100) * Math.PI / 180) * openAmount;
+    position[0] += -hingeSign * (part.size.width / 2 - 6) * Math.cos(rotation[1]);
+    position[2] += hingeSign * (part.size.width / 2 - 6) * Math.sin(rotation[1]);
+  }
+  return { position, rotation };
+}
+
+function partRadius(part: FurniturePart, renderMode: boolean) {
+  if (['shutter', 'drawer_front'].includes(part.type)) return renderMode ? 12 : 9;
+  if (['left_panel', 'right_panel', 'top_panel', 'bottom_panel', 'shelf', 'vertical_partition'].includes(part.type)) return renderMode ? 7 : 4;
+  if (part.type === 'countertop') return 14;
+  if (part.type === 'sink') return 38;
+  return renderMode ? 8 : 5;
+}
 
 const RenderBed: React.FC<{ item: Furniture; materialProps: any }> = ({ item, materialProps }) => (
   <group>

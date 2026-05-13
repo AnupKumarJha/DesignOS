@@ -70,6 +70,10 @@ export interface MaterialItem {
   sku?: string;
   finishType?: FinishType;
   imageUrl?: string;
+  normalMapUrl?: string;
+  roughnessMapUrl?: string;
+  aoMapUrl?: string;
+  textureRepeatScale?: number;
   thumbnailUrl?: string;
   thumbnailKind?: 'generated' | 'photo' | 'swatch' | 'procedural';
   generatedAssetId?: string;
